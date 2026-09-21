@@ -1,7 +1,7 @@
 ENTRY(loader) /* Nama entry label */
 SECTIONS {
     . = 0x00100000; /* kode di-load mulai 1 MB */
-   .multiboot ALIGN (0x1000) :  /* Align pada 4 KB */
+    .multiboot ALIGN (0x1000) :  /* Align pada 4 KB */
     { 
         *(.multiboot) /* GRUB Multiboot header */
     }
