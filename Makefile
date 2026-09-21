@@ -1,6 +1,6 @@
 # Compiler & linker
 ASM           = nasm
-LIN           = $(shell brew --prefix lld)/bin/ld.lld
+LIN           = x86_64-elf-ld
 CC            = clang
 ISO 		  = $(shell command -v mkisofs)
 
@@ -12,7 +12,7 @@ ISO_NAME      = uvuwevwe_OSas
 # Flags
 WARNING_CFLAG = -Wall -Wextra -Werror
 DEBUG_CFLAG   = -fshort-wchar -g
-STRIP_CFLAG   = -nostdlib -fno-stack-protector -nostartfiles -nodefaultlibs -ffreestanding
+STRIP_CFLAG   = -nostdlib -fno-stack-protector -nodefaultlibs -ffreestanding
 ARCH_CFLAG	  = --target=i386-elf -m32 -march=i386 -mno-sse -mno-sse2 -mno-mmx -mno-avx -msoft-float
 CFLAGS        = $(DEBUG_CFLAG) $(WARNING_CFLAG) $(STRIP_CFLAG) $(ARCH_CFLAG) -c -I$(SOURCE_FOLDER)
 AFLAGS        = -f elf32 -g -F dwarf
