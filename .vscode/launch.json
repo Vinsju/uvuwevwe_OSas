@@ -12,6 +12,7 @@
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
+            "miDebuggerPath": "/opt/homebrew/bin/x86_64-elf-gdb",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -26,10 +27,6 @@
                 {
                     "text": "target remote localhost:1234",
                     "description": "Connect to QEMU remote debugger"
-                },
-                {
-                    "text": "symbol-file kernel",
-                    "description": "Get kernel symbols"
                 },
                 {
                     "text": "set output-radix 16",
