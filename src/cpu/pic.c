@@ -37,3 +37,19 @@ void pic_send_eoi(uint8_t irq) {
 
     outb(PIC1_COMMAND, PIC_EOI);
 }
+
+void pic_unmask_irq(uint8_t irq) {
+    if (irq < 8) {
+        uint8_t mask = inb(PIC1_DATA);
+        mask &= ~(1 << irq);
+        outb(PIC1_DATA, mask);
+    } else {
+        uint8_t mask = inb(PIC2_DATA);
+        mask &= ~(1 << (irq - 8));
+        outb(PIC2_DATA, mask);
+
+        uint8_t master_mask = inb(PIC1_DATA);
+        master_mask &= ~(1 << 2);
+        outb(PIC1_DATA, master_mask);
+    }
+}

@@ -13,6 +13,11 @@ void idt_init(void) {
         idt[i].offset_high = (uint16_t)(((uint32_t)isr_default_handler >> 16) & 0xFFFF);
     }
 
+    uint32_t timer_handler = (uint32_t)isr_timer_handler;
+
+    idt[32].offset_low = timer_handler & 0xFFFF;
+    idt[32].offset_high = (timer_handler >> 16) & 0xFFFF;
+
     uint32_t keyboard_handler = (uint32_t)isr_keyboard_handler;
 
     idt[33].offset_low = keyboard_handler & 0xFFFF;

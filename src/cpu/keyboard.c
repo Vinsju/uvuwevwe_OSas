@@ -1,6 +1,8 @@
 #include "header/cpu/keyboard.h"
 #include "header/cpu/pic.h"
 
+volatile uint8_t keyboard_last_scancode = 0;
+
 static inline uint8_t keyboard_read(void) {
     uint8_t value;
 
@@ -16,7 +18,7 @@ static inline uint8_t keyboard_read(void) {
 void keyboard_handler(void) {
     uint8_t scancode = keyboard_read();
 
-    (void)scancode;
+    keyboard_last_scancode = scancode;
 
     pic_send_eoi(1);
 }
