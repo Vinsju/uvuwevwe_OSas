@@ -1,5 +1,6 @@
 #include "header/cpu/keyboard.h"
 #include "header/cpu/pic.h"
+#include "header/text/framebuffer.h"
 
 static const char scancode_to_ascii[128] = {
     [0x02] = '1',
@@ -46,8 +47,9 @@ static const char scancode_to_ascii[128] = {
 };
 
 volatile char keyboard_last_ascii = 0;
-
 volatile uint8_t keyboard_last_scancode = 0;
+static uint8_t keyboard_row = 4;
+static uint8_t keyboard_col = 0;
 
 static inline uint8_t keyboard_read(void) {
     uint8_t value;
@@ -68,6 +70,21 @@ void keyboard_handler(void) {
 
     if (scancode < 128) {
         keyboard_last_ascii = scancode_to_ascii[scancode];
+        if (keyboard_last_ascii != 0) {
+            framebuffer_write(keyboard_row, keyboard_col, keyboard_last_ascii, 0, 0xF);
+            keyboard_col++;
+
+            if (keyboard_col >= 80) {
+                keyboard_col = 0;
+                keyboard_row++;
+
+                if (keyboard_row >= 25) {
+                    keyboard_row = 0;
+                }
+            }
+
+            framebuffer_set_cursor(keyboard_row, keyboard_col);
+        }
     }
 
     pic_send_eoi(1);
