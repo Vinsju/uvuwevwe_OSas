@@ -1,8 +1,10 @@
 # Compiler & linker
+LLVM_PREFIX   = $(shell brew --prefix llvm)
+LLD_PREFIX    = $(shell brew --prefix lld)
 ASM           = nasm
-LIN           = ld.lld
+LIN           = $(LLD_PREFIX)/bin/ld.lld
 CC            = clang
-ISO 		  = $(shell command -v mkisofs)
+ISO           = $(shell command -v mkisofs)
 
 # Directory
 SOURCE_FOLDER = src
@@ -33,6 +35,7 @@ kernel:
 	@$(ASM) $(AFLAGS) $(SOURCE_FOLDER)/cpu/isr.s -o $(OUTPUT_FOLDER)/isr-asm.o
 # TODO: Compile C file with CFLAGS
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/kernel.c -o $(OUTPUT_FOLDER)/kernel.o
+	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/gdt.c -o $(OUTPUT_FOLDER)/gdt.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/pic.c -o $(OUTPUT_FOLDER)/pic.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/idt.c -o $(OUTPUT_FOLDER)/idt.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/isr.c -o $(OUTPUT_FOLDER)/isr.o
