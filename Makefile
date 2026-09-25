@@ -1,8 +1,10 @@
 # Compiler & linker
+LLVM_PREFIX   = $(shell brew --prefix llvm)
+LLD_PREFIX    = $(shell brew --prefix lld)
 ASM           = nasm
-LIN           = x86_64-elf-ld
+LIN           = $(LLD_PREFIX)/bin/ld.lld
 CC            = clang
-ISO 		  = $(shell command -v mkisofs)
+ISO           = $(shell command -v mkisofs)
 
 # Directory
 SOURCE_FOLDER = src
@@ -32,6 +34,7 @@ kernel:
 	@$(ASM) $(AFLAGS) $(SOURCE_FOLDER)/kernel-entrypoint.s -o $(OUTPUT_FOLDER)/kernel-entrypoint.o
 # TODO: Compile C file with CFLAGS
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/kernel.c -o $(OUTPUT_FOLDER)/kernel.o
+	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/gdt.c -o $(OUTPUT_FOLDER)/gdt.o
 	@$(LIN) $(LFLAGS) $(OUTPUT_FOLDER)/*.o -o $(OUTPUT_FOLDER)/kernel
 	@echo Linking object files and generate elf32...
 	@rm -f $(OUTPUT_FOLDER)/*.o
