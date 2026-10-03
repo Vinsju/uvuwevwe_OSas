@@ -10,6 +10,8 @@ ISO           = $(shell command -v mkisofs)
 SOURCE_FOLDER = src
 OUTPUT_FOLDER = bin
 ISO_NAME      = uvuwevwe_OSas
+DISK_IMAGE    = storage.bin
+DISK_SIZE     = 16M
 
 # Flags
 WARNING_CFLAG = -Wall -Wextra -Werror
@@ -22,7 +24,9 @@ LFLAGS        = -T $(SOURCE_FOLDER)/linker.ld -melf_i386
 
 
 run: all
-	@qemu-system-i386 -s -S -cdrom $(OUTPUT_FOLDER)/$(ISO_NAME).iso
+	@qemu-system-i386 \
+		-cdrom $(OUTPUT_FOLDER)/$(ISO_NAME).iso \
+		-drive file=$(DISK_IMAGE),format=raw
 all: build
 build: iso
 clean:
@@ -42,6 +46,7 @@ kernel:
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/keyboard.c -o $(OUTPUT_FOLDER)/keyboard.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/framebuffer.c -o $(OUTPUT_FOLDER)/framebuffer.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/portio.c -o $(OUTPUT_FOLDER)/portio.o
+	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/disk.c -o $(OUTPUT_FOLDER)/disk.o
 	@$(LIN) $(LFLAGS) $(OUTPUT_FOLDER)/*.o -o $(OUTPUT_FOLDER)/kernel
 	@echo Linking object files and generate elf32...
 	@rm -f $(OUTPUT_FOLDER)/*.o
@@ -63,3 +68,6 @@ iso: kernel
     	-o $(OUTPUT_FOLDER)/$(ISO_NAME).iso \
     	$(OUTPUT_FOLDER)/iso
 	@rm -r $(OUTPUT_FOLDER)/iso/
+
+disk:
+	@qemu-img create -f raw $(DISK_IMAGE) $(DISK_SIZE)
