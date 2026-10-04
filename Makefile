@@ -2,7 +2,7 @@
 LLVM_PREFIX   = $(shell brew --prefix llvm)
 LLD_PREFIX    = $(shell brew --prefix lld)
 ASM           = nasm
-LIN           = $(LLD_PREFIX)/bin/ld.lld
+LIN           = $(shell command -v x86_64-elf-ld 2>/dev/null || echo "$(shell brew --prefix lld 2>/dev/null)/bin/ld.lld")
 CC            = clang
 ISO           = $(shell command -v mkisofs)
 
