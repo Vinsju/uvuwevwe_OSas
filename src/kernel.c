@@ -6,6 +6,7 @@
 #include "header/cpu/idt.h"
 #include "header/cpu/isr.h"
 #include "header/text/framebuffer.h"
+#include "header/disk.h"
 
 void kernel_setup(void) {
     load_gdt(&_gdt_gdtr);

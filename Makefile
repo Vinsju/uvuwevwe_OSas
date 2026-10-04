@@ -2,7 +2,7 @@
 LLVM_PREFIX   = $(shell brew --prefix llvm)
 LLD_PREFIX    = $(shell brew --prefix lld)
 ASM           = nasm
-LIN           = $(LLD_PREFIX)/bin/ld.lld
+LIN           = $(shell command -v x86_64-elf-ld 2>/dev/null || echo "$(shell brew --prefix lld 2>/dev/null)/bin/ld.lld")
 CC            = clang
 ISO           = $(shell command -v mkisofs)
 
@@ -10,8 +10,8 @@ ISO           = $(shell command -v mkisofs)
 SOURCE_FOLDER = src
 OUTPUT_FOLDER = bin
 ISO_NAME      = uvuwevwe_OSas
-DISK_IMAGE    = storage.bin
-DISK_SIZE     = 16M
+DISK_IMAGE    = $(OUTPUT_FOLDER)/storage.bin
+DISK_SIZE     = 4M
 
 # Flags
 WARNING_CFLAG = -Wall -Wextra -Werror
@@ -47,6 +47,8 @@ kernel:
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/framebuffer.c -o $(OUTPUT_FOLDER)/framebuffer.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/portio.c -o $(OUTPUT_FOLDER)/portio.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/disk.c -o $(OUTPUT_FOLDER)/disk.o
+	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/stdlib/string.c -o $(OUTPUT_FOLDER)/string.o
+	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/ext2.c -o $(OUTPUT_FOLDER)/ext2.o
 	@$(LIN) $(LFLAGS) $(OUTPUT_FOLDER)/*.o -o $(OUTPUT_FOLDER)/kernel
 	@echo Linking object files and generate elf32...
 	@rm -f $(OUTPUT_FOLDER)/*.o
