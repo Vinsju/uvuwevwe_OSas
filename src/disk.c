@@ -15,9 +15,6 @@
 #define ATA_CMD_READ  0x20
 #define ATA_CMD_WRITE 0x30
 
-#define ATA_STATUS_BSY  0x80
-#define ATA_STATUS_DRQ  0x08
-#define ATA_STATUS_ERR  0x01
 
 static void wait_disk(void) {
     uint8_t status;
@@ -51,7 +48,10 @@ static void send_lba(uint32_t lba) {
     out(ATA_PRIMARY_DRIVE, 0xE0 | ((lba >> 24) & 0x0F));
 }
 
-void read_blocks(uint32_t lba, uint8_t *buffer, uint32_t number_of_blocks) {
+void read_blocks(void *ptr, uint32_t logical_block_address, uint8_t block_count) {
+    uint8_t *buffer = (uint8_t *)ptr;
+    uint32_t lba = logical_block_address;
+    uint32_t number_of_blocks = block_count;
     for (uint32_t block = 0; block < number_of_blocks; block++) {
 
         send_lba(lba + block);
@@ -76,7 +76,10 @@ void read_blocks(uint32_t lba, uint8_t *buffer, uint32_t number_of_blocks) {
     }
 }
 
-void write_blocks(uint32_t lba, uint8_t *buffer, uint32_t number_of_blocks) {
+void write_blocks(const void *ptr, uint32_t logical_block_address, uint8_t block_count) {
+    const uint8_t *buffer = (const uint8_t *)ptr;
+    uint32_t lba = logical_block_address;
+    uint32_t number_of_blocks = block_count;
     for (uint32_t block = 0; block < number_of_blocks; block++) {
 
         send_lba(lba + block);
