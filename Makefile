@@ -10,7 +10,7 @@ ISO           = $(shell command -v mkisofs)
 SOURCE_FOLDER = src
 OUTPUT_FOLDER = bin
 ISO_NAME      = uvuwevwe_OSas
-DISK_IMAGE    = storage.bin
+DISK_IMAGE    = $(OUTPUT_FOLDER)/storage.bin
 DISK_SIZE     = 4M
 
 # Flags
