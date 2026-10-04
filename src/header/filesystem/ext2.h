@@ -1,11 +1,10 @@
 #ifndef _EXT2_H
 #define _EXT2_H
 
-#include "disk.h"
+#include "../disk.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "../stdlib/stdtype.h"
 
 
 /* -- IF2130 File System constants -- */
