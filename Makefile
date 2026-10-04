@@ -11,7 +11,7 @@ SOURCE_FOLDER = src
 OUTPUT_FOLDER = bin
 ISO_NAME      = uvuwevwe_OSas
 DISK_IMAGE    = storage.bin
-DISK_SIZE     = 16M
+DISK_SIZE     = 4M
 
 # Flags
 WARNING_CFLAG = -Wall -Wextra -Werror
