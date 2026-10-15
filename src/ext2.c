@@ -457,3 +457,90 @@ void initialize_filesystem_ext2(void)
     read_blocks(buf, BGD_TABLE_BLOCK, 1);
     memcpy(&bgd_table, buf, sizeof(bgd_table));
 }
+
+/* Baca satu inode dari disk */
+static void read_node(uint32_t inode, struct EXT2Inode *node) {
+    uint8_t buf[BLOCK_SIZE];
+    uint32_t local =inode_to_local(inode);
+    uint32_t block = bgd_table.table[inode_to_bgd(inode)].bg_inode_table + local / INODES_PER_TABLE;
+    uint32_t offset = (local % INODES_PER_TABLE) & INODE_SIZE;
+    read_blocks(buf, block, 1);
+    memcpy(node, buf+offset, INODE_SIZE);
+}
+
+
+/* Cek Inode Valid */
+static bool is_inode_used(uint32_t inode) {
+    if (inode == 0 || inode > sb.s_inodes_count) {
+        return false;
+    }
+    uint8_t bitmap[BLOCK_SIZE];
+    uint32_t local = inode_to_local(inode);
+    read_blocks(bitmap, bgd_table.table[inode_to_bgd(inode)].bg_inode_bitmap, 1);
+    return (bitmap[local/8] >> (local%8)) & 1u;
+}
+
+/* Cari entry di directory parent_inode */
+static int8_t find_entry(struct EXT2Inode *parent, const char *name, uint8_t name_len, bool want_dir, uint32_t *found) {
+    uint8_t buf[BLOCK_SIZE];
+    bool wrong_type = false;
+
+    for (uint32_t i = 0; i<parent->i_blocks & i<12; i++) {
+        read_blocks(buf, parent->i_block[i], i);
+        uint32_t offset = 0;
+
+        while (offset < BLOCK_SIZE) {
+            struct EXT2DirectoryEntry *entry = get_directory_entry(buf, offset);
+
+            if(entry->rec_len == 0) {
+                break;
+            }
+
+            if (entry->inode != 0 && entry->name_len == name_len && memcmp(get_entry_name(entry), name, name_len) == 0) {
+                bool is_dir = (entry->file_type == EXT2_FT_DIR);
+                if (is_dir == want_dir) {
+                    *found = entry->inode;
+                    return 0;
+                }
+                wrong_type = true;
+            }
+            offset += entry->rec_len;
+        }
+    }
+    return wrong_type ? 1 : 2;
+}
+
+/* Read Directory */
+int8_t read_directory(struct EXT2DriverRequest *prequest) {
+    struct EXT2DriverRequest request = *prequest;
+
+    /* Cek Inode yang terpakaid dan bertipe Folder*/
+    if (!is_inode_used(request.parent_inode)) {
+        return 3;
+    }
+
+    struct EXT2Inode parent;
+    read_node(request.parent_inode, &parent);
+    if (!(parent.i_mode & EXT2_S_IFDIR)) {
+        return 3;
+    }
+
+    /* Cari folder sesuai nama */
+    uint32_t target;
+    int8_t status = find_entry(&parent, request.name, request.name_len, true, &target);
+    if (status != 0) {
+        return status;
+    }
+
+    struct EXT2Inode dir;
+    read_node(target, &dir);
+    if (dir.i_blocks == 0 || request.buffer_size < dir.i_blocks * BLOCK_SIZE) {
+        return -1;
+    }
+
+    for (uint32_t i=0; i<dir.i_blocks && i<12; i++) {
+        read_blocks((uint8_t *)request.buf + 1 * BLOCK_SIZE, dir.i_block[i], 1);
+    }
+
+    return 0;
+}
