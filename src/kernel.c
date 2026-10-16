@@ -7,6 +7,7 @@
 #include "header/cpu/isr.h"
 #include "header/text/framebuffer.h"
 #include "header/disk.h"
+#include "header/filesystem/ext2.h"
 
 void kernel_setup(void) {
     load_gdt(&_gdt_gdtr);
@@ -19,6 +20,8 @@ void kernel_setup(void) {
     isr_init();
 
     framebuffer_clear();
+
+    initialize_filesystem_ext2();
 
     __asm__ volatile ("sti");
 
