@@ -247,6 +247,14 @@ uint16_t get_entry_record_len(uint8_t name_len);
  */
 uint32_t get_dir_first_child_offset(void *ptr);
 
+/**
+ * get the id of the index-th data block of a node (direct / indirect / doubly indirect)
+ * @param node pointer of the node
+ * @param index index of the data block (0 .. i_blocks - 1)
+ * @return block id, 0 if not allocated
+ */
+uint32_t get_node_block(const struct EXT2Inode *node, uint32_t index);
+
 /* =================== MAIN FUNCTION OF EXT32 FILESYSTEM ============================*/
 
 /**
