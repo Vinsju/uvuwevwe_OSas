@@ -821,6 +821,73 @@ int8_t read_directory(struct EXT2DriverRequest *prequest) {
     return 0;
 }
 
+int8_t read(struct EXT2DriverRequest request){
+    if (!is_inode_used(request.parent_inode)){
+        return 4;
+    }
+    struct EXT2Inode parent;
+    read_node(request.parent_inode,&parent);
+    if (!(parent.i_mode & EXT2_S_IFDIR)) {
+        return 4;
+    }
+
+    if (request.name == NULL || request.name_len == 0) {
+        return -1;
+    }
+
+    uint32_t target;
+    int8_t status = find_entry(&parent,request.name,request.name_len,false,&target);
+    if (status == 1) {
+        return 1;
+    }
+    else if (status == 2) {
+        return 3;
+    }
+
+    if (!is_inode_used(target)) {
+        return -1;
+    }
+
+    struct EXT2Inode file;
+    read_node(target,&file);
+    if (!(file.i_mode & EXT2_S_IFREG)) {
+        return 1;
+    }
+
+    if (request.buffer_size < file.i_size) {
+        return 2;
+    }
+
+    if (file.i_size > 0 && request.buf == NULL) {
+        return -1;
+    }
+
+    uint8_t *dst = (uint8_t *)request.buf;
+    uint8_t tmp[BLOCK_SIZE];
+
+    for (uint32_t i = 0; i < file.i_blocks && i * BLOCK_SIZE < file.i_size; i++){
+        uint32_t id = get_node_block(&file,i);
+        if (id == 0){
+            return -1;
+        }
+
+        uint32_t offset = i * BLOCK_SIZE;
+        uint32_t remaining = file.i_size - offset;
+
+        if (remaining >= BLOCK_SIZE) {
+            read_blocks(dst + offset, id, 1);
+        }
+        else {
+            read_blocks(tmp, id, 1);
+            memcpy(dst + offset, tmp, remaining);
+        }
+    }
+
+
+
+
+}
+
 /* ============================ DIRECTORY ENTRY HELPER ============================ */
 
 static bool is_dot_name(const char *name, uint8_t name_len)
