@@ -13,8 +13,9 @@ Repository ini dibuat untuk memenuhi tugas besar mata kuliah IF2130 Sistem Opera
 </ol>
 
 ## Struktur Direktori 
+```
 └── src/
-   ├── cpu/
+    ├── cpu/
     │   ├── gdt.c
     │   ├── idt.c
     │   ├── isr.c
@@ -50,8 +51,9 @@ Repository ini dibuat untuk memenuhi tugas besar mata kuliah IF2130 Sistem Opera
     ├── kernel-entrypoint.s
     ├── linker.ld
     └── menu.lst
+```
   
-- Cara Run :
+## Cara Run Virtual Machine QEMU:
   1. make clean
   2. make build
   3. make run
