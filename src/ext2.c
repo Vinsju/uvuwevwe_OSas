@@ -882,10 +882,7 @@ int8_t read(struct EXT2DriverRequest request){
             memcpy(dst + offset, tmp, remaining);
         }
     }
-
-
-
-
+    return 0;
 }
 
 /* ============================ DIRECTORY ENTRY HELPER ============================ */
