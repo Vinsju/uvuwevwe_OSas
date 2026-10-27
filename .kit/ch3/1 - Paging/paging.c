@@ -96,11 +96,41 @@ bool paging_allocate_user_page_frame(struct PageDirectory *page_dir, void *virtu
 }
 
 bool paging_free_user_page_frame(struct PageDirectory *page_dir, void *virtual_addr) {
-    /* 
-     * TODO: Deallocate a physical frame from respective virtual address
-     * - Use the page_dir.table values to check mapped physical frame
-     * - Remove the entry by setting it into 0
-     */
+    uint32_t page_directory_index = ((uint32_t)virtual_addr >> 22) & 0x3FF;
+    uint32_t page_table_index = ((uint32_t)virtual_addr >> 12) & 0x3FF;
+
+    struct PageTable *page_table =
+        paging_get_page_table(page_dir, page_directory_index);
+
+    if (page_table == NULL) {
+        return false;
+    }
+
+    struct PageTableEntry *page_entry =
+        &page_table->table[page_table_index];
+
+    if (!page_entry->flag.present_bit) {
+        return false;
+    }
+
+    uint32_t page_frame_number =
+        (page_entry->higher_address << 10) |
+        page_entry->lower_address;
+
+    if (
+        page_frame_number < KERNEL_RESERVED_PAGE_FRAME_COUNT ||
+        page_frame_number >= PAGE_FRAME_MAX_COUNT
+    ) {
+        return false;
+    }
+
+    page_manager_state.page_frame_map[page_frame_number] = false;
+    page_manager_state.free_page_frame_count++;
+
+    memset(page_entry, 0, sizeof(struct PageTableEntry));
+
+    flush_single_tlb(virtual_addr);
+
     return true;
 }
 
