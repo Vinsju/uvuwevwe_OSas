@@ -1,12 +1,16 @@
 global loader       ; the entry symbol for ELF
 global load_gdt     ; load GDT table
-extern kernel_setup ; kernel
+extern kernel_setup
+extern _paging_kernel_page_directory
+extern _paging_kernel_page_table
+
 
 KERNEL_STACK_SIZE equ 2097152        ; size of stack in bytes (2 MiB, spek 2.6)
 MAGIC_NUMBER      equ 0x1BADB002     ; define the magic number constant
 FLAGS             equ 0x0            ; multiboot flags
 CHECKSUM          equ -MAGIC_NUMBER  ; calculate the checksum
                                      ; (magic number + checksum + flags should equal 0)
+KERNEL_VIRTUAL_BASE equ 0xC0000000
 
 section .bss
 align 4                              ; align at 4 bytes
@@ -19,14 +23,50 @@ align 4                              ; the code must be 4 byte aligned
     dd FLAGS                         ; the flags,
     dd CHECKSUM                      ; and the checksum
 
+section .setup.text
 
-section .text                                  ; start of the text (code) 
-loader:                                        ; the loader label (defined as entry point in linker script)
-    mov  esp, kernel_stack + KERNEL_STACK_SIZE ; setup stack register to proper location
+loader equ (loader_entrypoint - KERNEL_VIRTUAL_BASE)
+
+loader_entrypoint:
+    mov edi, _paging_kernel_page_table - KERNEL_VIRTUAL_BASE
+    xor eax, eax
+    mov ecx, 1024
+
+.fill_kernel_page_table:
+    mov edx, eax
+    or  edx, 0x3
+    mov [edi], edx
+    add edi, 4
+    add eax, 0x1000
+    loop .fill_kernel_page_table
+
+    mov eax, _paging_kernel_page_table - KERNEL_VIRTUAL_BASE
+    or  eax, 0x3
+    mov [_paging_kernel_page_directory - KERNEL_VIRTUAL_BASE], eax
+    mov [_paging_kernel_page_directory - KERNEL_VIRTUAL_BASE + 0xC00], eax
+
+    mov eax, _paging_kernel_page_directory - KERNEL_VIRTUAL_BASE
+    mov cr3, eax
+
+    mov eax, cr4
+    and eax, 0xFFFFFFEF
+    mov cr4, eax
+
+    mov eax, cr0
+    or  eax, 0x80000000
+    mov cr0, eax
+
+    lea eax, [loader_virtual]
+    jmp eax
+
+loader_virtual:
+    mov dword [_paging_kernel_page_directory], 0
+    invlpg [0]
+    mov esp, kernel_stack + KERNEL_STACK_SIZE
     call kernel_setup
-.loop:
-    jmp .loop                                  ; loop forever
 
+.loop:
+    jmp .loop
 
 ; More details: https://en.wikibooks.org/wiki/X86_Assembly/Protected_Mode
 load_gdt:

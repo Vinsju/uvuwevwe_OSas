@@ -159,7 +159,7 @@ void update_page_directory_entry(
     struct PageDirectory *page_dir,
     void *physical_addr, 
     void *virtual_addr, 
-    struct PageDirectoryEntryFlag flag
+    struct PageTableEntryFlag flag
 );
 
 /**
@@ -171,7 +171,7 @@ void update_page_directory_entry(
  */
 struct PageTable *paging_get_page_table(struct PageDirectory *page_dir, uint32_t page_directory_index);
 
-void *paging_get_current_page_directory_addr(void);
+struct PageDirectory *paging_get_current_page_directory_addr(void);
 
 /**
  * Invalidate page that contain virtual address in parameter

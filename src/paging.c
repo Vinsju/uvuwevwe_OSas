@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <string.h>
+#include "header/stdlib/string.h"
 #include "header/memory/paging.h"
 
 /**
@@ -147,11 +147,7 @@ bool paging_allocate_user_page_frame(struct PageDirectory *page_dir, void *virtu
 }
 
 bool paging_free_user_page_frame(struct PageDirectory *page_dir, void *virtual_addr) {
-    /* 
-     * TODO: Deallocate a physical frame from respective virtual address
-     * - Use the page_dir.table values to check mapped physical frame
-     * - Remove the entry by setting it into 0
-     */
-    return true;
+    (void) page_dir;
+    (void) virtual_addr;
+    return false;
 }
-

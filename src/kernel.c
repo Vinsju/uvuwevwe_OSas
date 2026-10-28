@@ -20,6 +20,7 @@ void kernel_setup(void) {
     isr_init();
 
     framebuffer_clear();
+    framebuffer_write(0, 0, 'A', 0x0F, 0x00);
 
     initialize_filesystem_ext2();
 
