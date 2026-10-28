@@ -55,6 +55,12 @@ struct PageTable *paging_get_page_table(
             dir_entry->flag.write_bit = true;
             dir_entry->flag.user_access_bit = true;
 
+            dir_entry->lower_address =
+                page_frame_number & 0x3FF;
+
+            dir_entry->higher_address =
+                (page_frame_number >> 10) & 0xFF;
+
             return (struct PageTable *)(
                 RECURSIVE_PAGE_TABLES_VIRTUAL_ADDRESS
                 + page_directory_index * PAGE_FRAME_SIZE
