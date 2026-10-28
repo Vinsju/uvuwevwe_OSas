@@ -147,7 +147,43 @@ bool paging_allocate_user_page_frame(struct PageDirectory *page_dir, void *virtu
 }
 
 bool paging_free_user_page_frame(struct PageDirectory *page_dir, void *virtual_addr) {
-    (void) page_dir;
-    (void) virtual_addr;
-    return false;
+    uint32_t page_directory_index =
+        ((uint32_t) virtual_addr >> 22) & 0x3FF;
+
+    uint32_t page_table_index =
+        ((uint32_t) virtual_addr >> 12) & 0x3FF;
+
+    struct PageTable *page_table =
+        paging_get_page_table(page_dir, page_directory_index);
+
+    if (page_table == NULL) {
+        return false;
+    }
+
+    struct PageTableEntry *page_entry =
+        &page_table->table[page_table_index];
+
+    if (!page_entry->flag.present_bit) {
+        return false;
+    }
+
+    uint32_t page_frame_number =
+        page_entry->lower_address |
+        (page_entry->higher_address << 10);
+
+    if (
+        page_frame_number < KERNEL_RESERVED_PAGE_FRAME_COUNT ||
+        page_frame_number >= PAGE_FRAME_MAX_COUNT
+    ) {
+        return false;
+    }
+
+    page_manager_state.page_frame_map[page_frame_number] = false;
+    page_manager_state.free_page_frame_count++;
+
+    page_entry->flag.present_bit = false;
+
+    flush_single_tlb(virtual_addr);
+
+    return true;
 }

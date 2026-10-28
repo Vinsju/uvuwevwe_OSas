@@ -22,7 +22,7 @@
 #define RECURSIVE_PAGE_DIRECTORY_INDEX 1023u
 
 // Maximum usable page frame. Default count: 128 MiB / 4 KiB = 32768 frames
-#define PAGE_FRAME_MAX_COUNT ((SYSTEM_MEMORY_MB << 20) / PAGE_FRAME_SIZE)
+#define PAGE_FRAME_MAX_COUNT (0x7FE0000u / PAGE_FRAME_SIZE)
 
 // kernel's  page directory, using 4 KiB pages
 extern struct PageDirectory _paging_kernel_page_directory;
