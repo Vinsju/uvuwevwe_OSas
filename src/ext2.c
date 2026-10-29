@@ -1240,3 +1240,51 @@ int8_t delete (struct EXT2DriverRequest request)
     deallocate_node(target);
     return 0;
 }
+
+/* ============================ FILE SIZE (dipakai shell, syscall 11) ============================ */
+
+/**
+ * @brief ambil ukuran file (i_size) tanpa membaca isinya
+ * @return Error code (sama seperti read): 0 success - 1 not a file - 3 not found - 4 parent invalid - -1 unknown
+ */
+int8_t get_file_size(struct EXT2DriverRequest request, uint32_t *size)
+{
+    if (size == NULL)
+    {
+        return -1;
+    }
+    if (!is_inode_used(request.parent_inode))
+    {
+        return 4;
+    }
+    struct EXT2Inode parent;
+    read_node(request.parent_inode, &parent);
+    if (!(parent.i_mode & EXT2_S_IFDIR))
+    {
+        return 4;
+    }
+    if (request.name == NULL || request.name_len == 0)
+    {
+        return -1;
+    }
+
+    uint32_t target;
+    int8_t status = find_entry(&parent, request.name, request.name_len, false, &target);
+    if (status == 1)
+    {
+        return 1;
+    }
+    if (status == 2)
+    {
+        return 3;
+    }
+
+    struct EXT2Inode file;
+    read_node(target, &file);
+    if (!(file.i_mode & EXT2_S_IFREG))
+    {
+        return 1;
+    }
+    *size = file.i_size;
+    return 0;
+}

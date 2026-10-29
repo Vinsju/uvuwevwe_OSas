@@ -6,6 +6,7 @@
 void isr_default_handler(void);
 void isr_timer_handler(void);
 void isr_keyboard_handler(void);
+void isr_syscall_handler(void);
 void isr_init(void);
 
 #endif

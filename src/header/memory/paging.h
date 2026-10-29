@@ -67,49 +67,35 @@ struct PageTableEntryFlag {
 } __attribute__((packed));
 
 /**
- * Page Directory Entry, for page size 4 KB. 
- * can also be used as Page Table Entry
- * References: Intel Manual 3a - Ch 4 Paging - Figure 4-4 PDE: 4KB page
+ * Page Directory Entry, untuk page table berukuran 4 KiB (CR4.PSE = 0).
+ * References: Intel Manual 3a - Ch 4 Paging - Figure 4-4 / Table 4-6 (PDE that references a page table)
  *
- * @param flag            Contain 8-bit page directory entry flag
- * @param global_page     G flag
- * @param ignored         Ignored bit (3-bit)
- * @param page_attr_table Page Attribute Table bit
- * higher_address         Bits 39:32 of address (8-bit)
- * @param reserved        Reserved bit (1-bit)
- * @param lower_address   Bits 31:22 of address (10-bit) act as pageTable index
+ * @param flag            Bit 0-7: flag page directory entry (bit 7 PS harus 0)
+ * @param global_page     Bit 8: diabaikan untuk PDE 4 KiB
+ * @param ignored         Bit 9-11: bebas dipakai OS
+ * @param page_table_addr Bit 12-31: alamat fisik page table >> 12 (nomor frame page table)
  */
 struct PageDirectoryEntry {
     struct PageDirectoryEntryFlag flag;
-    uint16_t global_page      : 1;
-    uint16_t ignored         : 3;
-    uint16_t page_attr_table : 1;
-    uint16_t higher_address  : 8;
-    uint16_t reserved        : 1;
-    uint16_t lower_address   : 10;
+    uint32_t global_page     : 1;
+    uint32_t ignored         : 3;
+    uint32_t page_table_addr : 20;
 } __attribute__((packed));
 
 /**
- * Page Table Entry, for page size 4 KB. 
- * can also be used as Page Table Entry
- * References: Intel Manual 3a - Ch 4 Paging - Figure 4-4 PDE: 4KB page
+ * Page Table Entry, untuk page berukuran 4 KiB.
+ * References: Intel Manual 3a - Ch 4 Paging - Figure 4-4 / Table 4-6 (PTE that maps a 4-KByte page)
  *
- * @param flag            Contain 8-bit page directory entry flag
- * @param global_page     G flag
- * @param ignored         Ignored bit (3-bit)
- * @param page_attr_table Page Attribute Table bit
- * higher_address         Bits 39:32 of address (8-bit)
- * @param reserved        Reserved bit (1-bit)
- * @param lower_address   Bits 31:22 of address (10-bit) act as frame index
+ * @param flag        Bit 0-7: flag page table entry
+ * @param global_page Bit 8: G flag
+ * @param ignored     Bit 9-11: bebas dipakai OS
+ * @param frame_addr  Bit 12-31: alamat fisik frame >> 12 (nomor page frame)
  */
 struct PageTableEntry {
     struct PageTableEntryFlag flag;
-    uint16_t global_page      : 1;
-    uint16_t ignored         : 3;
-    uint16_t page_attr_table : 1;
-    uint16_t higher_address  : 8;
-    uint16_t reserved        : 1;
-    uint16_t lower_address   : 10;
+    uint32_t global_page : 1;
+    uint32_t ignored     : 3;
+    uint32_t frame_addr  : 20;
 } __attribute__((packed));
 /**
  * Page Directory, contain array of PageDirectoryEntry.

@@ -45,6 +45,12 @@ loader_entrypoint:
     mov [_paging_kernel_page_directory - KERNEL_VIRTUAL_BASE], eax
     mov [_paging_kernel_page_directory - KERNEL_VIRTUAL_BASE + 0xC00], eax
 
+    ; Recursive mapping: entry 1023 menunjuk page directory itu sendiri,
+    ; sehingga page table dapat diakses di 0xFFC00000 + index * 0x1000 (dipakai paging_get_page_table)
+    mov eax, _paging_kernel_page_directory - KERNEL_VIRTUAL_BASE
+    or  eax, 0x3
+    mov [_paging_kernel_page_directory - KERNEL_VIRTUAL_BASE + 1023 * 4], eax
+
     mov eax, _paging_kernel_page_directory - KERNEL_VIRTUAL_BASE
     mov cr3, eax
 
