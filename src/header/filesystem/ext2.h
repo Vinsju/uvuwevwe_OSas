@@ -337,6 +337,14 @@ int8_t write(struct EXT2DriverRequest *request);
  */
 int8_t delete (struct EXT2DriverRequest request);
 
+/**
+ * @brief ambil ukuran file (i_size) tanpa membaca isinya, dipakai shell lewat syscall 11
+ * @param request name, name_len, parent_inode yang dipakai (buf & buffer_size diabaikan)
+ * @param size    diisi ukuran file dalam byte jika berhasil
+ * @return Error code: 0 success - 1 not a file - 3 not found - 4 parent folder invalid - -1 unknown
+ */
+int8_t get_file_size(struct EXT2DriverRequest request, uint32_t *size);
+
 /* =============================== MEMORY ==========================================*/
 
 /**
