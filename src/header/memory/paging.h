@@ -82,6 +82,8 @@ struct PageDirectoryEntry {
     uint32_t page_table_addr : 20;
 } __attribute__((packed));
 
+#define PTE_AVAILABLE_SWAPPED 0x1u
+
 /**
  * Page Table Entry, untuk page berukuran 4 KiB.
  * References: Intel Manual 3a - Ch 4 Paging - Figure 4-4 / Table 4-6 (PTE that maps a 4-KByte page)
@@ -196,5 +198,12 @@ bool paging_allocate_user_page_frame(struct PageDirectory *page_dir, void *virtu
  * @return              Will return true if success, false otherwise
  */
 bool paging_free_user_page_frame(struct PageDirectory *page_dir, void *virtual_addr);
+
+void paging_init(void);
+
+bool paging_get_free_frame(uint32_t *frame_number);
+
+struct PageTableEntry *paging_get_page_table_entry(struct PageDirectory *page_dir, void *virtual_addr);
+
 
 #endif

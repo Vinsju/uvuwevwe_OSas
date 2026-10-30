@@ -11,7 +11,7 @@
 void swap_track_page(void *virtual_addr);
 // Catat page user yang baru masuk RAM sebagai calon swap out
 
-bool swap_envcit_one(uint32_t *frame_number);
+bool swap_evict_one(uint32_t *frame_number);
 // Algoritma page replacement
 
 void swap_free_slot(uint32_t slot);
