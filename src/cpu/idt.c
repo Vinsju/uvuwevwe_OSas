@@ -30,6 +30,9 @@ void idt_init(void) {
     idt[0x30].offset_high = (syscall_handler_addr >> 16) & 0xFFFF;
     idt[0x30].type_attr = 0xEE;
 
+    uint32_t page_fault_handler_addr = (uint32_t)isr_page_fault_handler;
+    idt[14].offset_low = page_fault_handler_addr & 0xFFFF;
+    idt[14].offset_high = (page_fault_handler_addr >> 16) & 0xFFFF;
     idtr.size = sizeof(idt) - 1;
     idtr.address = idt;
 
