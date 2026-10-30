@@ -55,16 +55,17 @@ struct PageTable *paging_get_page_table(
             dir_entry->flag.write_bit = true;
             dir_entry->flag.user_access_bit = true;
 
-            dir_entry->lower_address =
-                page_frame_number & 0x3FF;
+            dir_entry->page_table_addr = page_frame_number;
 
-            dir_entry->higher_address =
-                (page_frame_number >> 10) & 0xFF;
-
-            return (struct PageTable *)(
+            /* Page table baru berisi sisa data frame lama: kosongkan lewat recursive mapping */
+            struct PageTable *new_table = (struct PageTable *)(
                 RECURSIVE_PAGE_TABLES_VIRTUAL_ADDRESS
                 + page_directory_index * PAGE_FRAME_SIZE
             );
+            flush_single_tlb(new_table);
+            memset(new_table, 0, sizeof(struct PageTable));
+
+            return new_table;
         }
     }
 
@@ -101,11 +102,8 @@ void update_page_directory_entry(
 
     page_table->table[page_table_index].flag = flag;
 
-    page_table->table[page_table_index].lower_address =
-    ((uint32_t) physical_addr >> 12) & 0x3FF;
-
-    page_table->table[page_table_index].higher_address =
-    ((uint32_t) physical_addr >> 22) & 0xFF;
+    page_table->table[page_table_index].frame_addr =
+    ((uint32_t) physical_addr >> 12) & 0xFFFFF;
 
     flush_single_tlb(virtual_addr);
 }
@@ -173,9 +171,7 @@ bool paging_free_user_page_frame(struct PageDirectory *page_dir, void *virtual_a
         return false;
     }
 
-    uint32_t page_frame_number =
-        page_entry->lower_address |
-        (page_entry->higher_address << 10);
+    uint32_t page_frame_number = page_entry->frame_addr;
 
     if (
         page_frame_number < KERNEL_RESERVED_PAGE_FRAME_COUNT ||
@@ -193,3 +189,5 @@ bool paging_free_user_page_frame(struct PageDirectory *page_dir, void *virtual_a
 
     return true;
 }
+_Static_assert(sizeof(struct PageDirectoryEntry) == 4, "PageDirectoryEntry harus 4 byte");
+_Static_assert(sizeof(struct PageTableEntry) == 4, "PageTableEntry harus 4 byte");
