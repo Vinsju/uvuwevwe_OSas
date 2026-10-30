@@ -104,7 +104,7 @@ bool swap_evict_one(uint32_t *frame_number) {
     uint32_t virtual_address;
 
     while (fifo_pop(&virtual_address)) {
-        struct PageTableEntry *entry = paging_get_page_table(page_dir, (void *) virtual_address);
+        struct PageTableEntry *entry = paging_get_page_table_entry(page_dir, (void *) virtual_address);
 
         if (entry == NULL || !entry->flag.present_bit) continue; // Entri basi
 
@@ -166,6 +166,21 @@ void swap_prefault(void *buf, uint32_t size) {
     }
 }
 
+static void print_text(uint8_t row, uint8_t col, const char *text, uint8_t color) {
+    for (uint8_t i=0; text[i] != '\0' && col+i < 80; i++) {
+        framebuffer_write(row, col+i, text[i], color, 0x0);
+    }
+}
+
+static void print_hex(uint8_t row, uint8_t col, uint32_t value, uint8_t color) {
+    const char *digits = "0123456789ABCDEF";
+    char text[11] = "0x00000000";
+    for (int i=0; i<8; i++) {
+        text[9-i] = digits[(value >> (4*i)) & 0xF];
+    }
+    print_text(row, col, text, color);
+}
+
 void page_fault_handler(uint32_t fault_address, uint32_t error_code) {
     if (!(error_code & 0x1) && fault_address < KERNEL_VIRTUAL_BASE) {
         struct PageTableEntry *entry = paging_get_page_table_entry(paging_get_current_page_directory_addr(), (void *) fault_address);
@@ -180,21 +195,6 @@ void page_fault_handler(uint32_t fault_address, uint32_t error_code) {
     print_hex(24, 32, error_code, 0xC);
     __asm__ volatile("cli");
     while(true) __asm__ volatile("hlt");
-}
-
-static void print_text(uint8_t row, uint8_t col, const char *text, uint8_t color) {
-    for (uint8_t i=0; text[i] != '\0' && col+i < 80; i++) {
-        framebuffer_write(row, col+i, text[i], color, 0x0);
-    }
-}
-
-static void print_hex(uint8_t row, uint8_t col, uint32_t value, uint8_t color) {
-    const char *digits = "0123456789ABCDEF";
-    char text[11] = "0x00000000";
-    for (int i=0; i<8; i++) {
-        text[9-i] = digits[(value >> (4*i)) & 0xF];
-    }
-    print_text(row, col, text, color);
 }
 
 #define SELFTEST_BASE 0x10000000u
