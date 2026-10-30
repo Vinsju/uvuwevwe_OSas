@@ -117,6 +117,134 @@ bool swap_evict_one(uint32_t *frame_number) {
         write_blocks((void *) virtual_address, slot_to_block(slot), SWAP_BLOCKS_PER_PAGE);
 
         // Simpan nomor framse sebelum PTE dikosongkan
-        
+        uint32_t frame = entry->frame_addr;
+        memset(entry, 0, sizeof(*entry));
+        entry->ignored = PTE_AVAILABLE_SWAPPED;
+        entry->frame_addr = slot;
+
+        flush_single_tlb((void *) virtual_address);
+
+        *frame_number = frame;
+        return true;
     }
+    return false;
+}
+
+
+/* SWAP IN: DISK -> RAM
+*/
+static bool swap_in(struct PageTableEntry *entry, uint32_t virtual_addr) {
+    uint32_t slot = entry->frame_addr;
+
+    uint32_t frame;
+    if (!paging_get_free_frame(&frame)) {
+        return false;
+    }
+
+    memset(entry, 0, sizeof(*entry));
+    entry->flag.present_bit = 1;
+    entry->flag.write_bit = 1;
+    entry->flag.user_access_bit = 1;
+    entry->frame_addr = frame;
+    flush_single_tlb((void *) virtual_addr);
+
+    read_blocks((void *) virtual_addr, slot_to_block(slot), SWAP_BLOCKS_PER_PAGE);
+
+    swap_free_slot(slot);
+    swap_track_page((void *) virtual_addr);
+    return true;
+}
+
+void swap_prefault(void *buf, uint32_t size) {
+    if (size == 0) return;
+    uint32_t start = (uint32_t) buf & PAGE_MASK;
+    uint32_t end = (uint32_t) buf + size - 1;
+
+    for (uint32_t page = start; page <= end && page >= start; page += PAGE_FRAME_SIZE) {
+        volatile uint8_t touch = *(volatile uint8_t *) page;
+        (void) touch;
+    }
+}
+
+void page_fault_handler(uint32_t fault_address, uint32_t error_code) {
+    if (!(error_code & 0x1) && fault_address < KERNEL_VIRTUAL_BASE) {
+        struct PageTableEntry *entry = paging_get_page_table_entry(paging_get_current_page_directory_addr(), (void *) fault_address);
+        if (entry != NULL && !entry->flag.present_bit && (entry->ignored & PTE_AVAILABLE_SWAPPED) && swap_in(entry, fault_address & PAGE_MASK)) {
+            return;
+        }
+    }
+
+    print_text(24, 0, "PAGE FAULT addr=", 0xC);
+    print_hex(24, 16, fault_address, 0xC);
+    print_text(24, 27, "err=", 0xC);
+    print_hex(24, 32, error_code, 0xC);
+    __asm__ volatile("cli");
+    while(true) __asm__ volatile("hlt");
+}
+
+static void print_text(uint8_t row, uint8_t col, const char *text, uint8_t color) {
+    for (uint8_t i=0; text[i] != '\0' && col+i < 80; i++) {
+        framebuffer_write(row, col+i, text[i], color, 0x0);
+    }
+}
+
+static void print_hex(uint8_t row, uint8_t col, uint32_t value, uint8_t color) {
+    const char *digits = "0123456789ABCDEF";
+    char text[11] = "0x00000000";
+    for (int i=0; i<8; i++) {
+        text[9-i] = digits[(value >> (4*i)) & 0xF];
+    }
+    print_text(row, col, text, color);
+}
+
+#define SELFTEST_BASE 0x10000000u
+
+static uint32_t selftest_pattern(uint32_t page, uint32_t word) {
+    return (page * 0x9E3779B1u) ^ (word * 0x85EBCA6Bu) ^ 0xA5A5A5A5u;
+}
+
+void swap_selftest(uint32_t page_count) {
+    struct PageDirectory *page_dir = paging_get_current_page_directory_addr();
+    uint32_t free_frames_before = page_manager_state.free_page_frame_count;
+    uint32_t allocated = 0, bad_pages = 0;
+
+    print_text(23, 0, "SWAP TEST: frames bebas=", 0xF);
+    print_hex(23, 24, free_frames_before, 0xF);
+    print_text(23, 35, " halaman=", 0xF);
+    print_hex(23, 44, page_count, 0xF);
+
+    for (uint32_t p=0; p<page_count; p++) {
+        uint32_t *page = (uint32_t *)(SELFTEST_BASE + p * PAGE_FRAME_SIZE);
+        
+        if (!paging_allocate_user_page_frame(page_dir, page)) break;
+        allocated++;
+        for (uint32_t w=0; w<PAGE_FRAME_SIZE/4; w++) {
+            page[w] = selftest_pattern(p,w);
+        }
+    }
+
+    for (uint32_t p=0; p<allocated; p++) {
+        uint32_t *page = (uint32_t *)(SELFTEST_BASE + p * PAGE_FRAME_SIZE);
+
+        for (uint32_t w=0; w<PAGE_FRAME_SIZE/4; w++) {
+            if (page[w] != selftest_pattern(p,w)) {
+                bad_pages++;
+                break;
+            }
+        }
+    }
+
+    uint32_t swapped = swap_used_count;
+    for (uint32_t p=0; p<allocated; p++) {
+        paging_free_user_page_frame(page_dir, (void *)(SELFTEST_BASE + p*PAGE_FRAME_SIZE));
+    }
+
+    bool ok = allocated == page_count && bad_pages == 0 && swap_used_count == 0;
+    print_text(24, 0, ok ? "SWAP TEST PASS " : "SWAP TEST FAIL ", ok ? 0xA : 0xC);
+    print_text(24, 15, "alloc=", 0xF);
+    print_hex(24, 21, allocated, 0xF);
+    print_text(24, 32, " rusak=", 0xF);
+    print_hex(24, 39, bad_pages, 0xF);
+    print_text(24, 50, " di swap=", 0xF);
+    print_hex(24, 59, swapped, 0xF);
 }
