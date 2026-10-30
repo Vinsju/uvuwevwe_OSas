@@ -69,6 +69,7 @@ static bool swap_alloc_slot(uint32_t *slot) {
     return false;
 }
 
+// Mem-free kan sejumlah slot yang sedang used
 void swap_free_slot(uint32_t slot) {
     if (slot < SWAP_SLOT_COUNT && swap_slot_used[slot]) {
         swap_slot_used[slot] = false;
@@ -76,9 +77,46 @@ void swap_free_slot(uint32_t slot) {
     }
 }
 
+// Menghitung jumlah free slot
 uint32_t swap_free_slot_count() {
     return SWAP_SLOT_COUNT - swap_used_count;
 }
 
+// Menghitung alamat block dari sebuah slot
+static uint32_t slot_to_block(uint32_t slot) {
+    return SWAP_START_BLOCK + slot * SWAP_BLOCKS_PER_PAGE;
+}
 
+void swap_track_page(void *virtual_address) {
+    fifo_push((uint32_t) virtual_address & PAGE_MASK);
+}
 
+/* SWAP OUT: RAM -> DISK 
+ * Ambil halaman tertua dari anteran FIFO
+ * Cari slot kosong di swap
+ * Tulis isi halaman ke slot itu di disk
+ * Ubah PTE: present = 0, tandai Swapped, simpan nomor slot
+ * Flush TLB untuk alamat itu
+ * Frame fisik sekarang bebas & dikembalikan
+*/
+bool swap_evict_one(uint32_t *frame_number) {
+    struct PageDirectory *page_dir = paging_get_current_page_directory_addr();
+    uint32_t virtual_address;
+
+    while (fifo_pop(&virtual_address)) {
+        struct PageTableEntry *entry = paging_get_page_table(page_dir, (void *) virtual_address);
+
+        if (entry == NULL || !entry->flag.present_bit) continue; // Entri basi
+
+        uint32_t slot;
+        if (!swap_alloc_slot(&slot)) { // Swap penuh
+            fifo_push(virtual_address);
+            return false;
+        }
+
+        write_blocks((void *) virtual_address, slot_to_block(slot), SWAP_BLOCKS_PER_PAGE);
+
+        // Simpan nomor framse sebelum PTE dikosongkan
+        
+    }
+}
