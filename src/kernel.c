@@ -8,9 +8,12 @@
 #include "header/text/framebuffer.h"
 #include "header/disk.h"
 #include "header/filesystem/ext2.h"
+#include "header/memory/paging.h"
+
 
 void kernel_setup(void) {
     load_gdt(&_gdt_gdtr);
+    paging_init();
     uint32_t a;
     uint32_t volatile b = 0x0000BABE;
    __asm__("mov $0xCAFE0000, %0" : "=r"(a));

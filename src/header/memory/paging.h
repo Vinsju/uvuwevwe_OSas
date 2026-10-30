@@ -9,7 +9,9 @@
  * change this to be a small number to test if swap working properly
  * kernel will be tested with a small number of SYSTEM_MEMORY_MB
  */
- #define SYSTEM_MEMORY_MB     128 
+#ifndef SYSTEM_MEMORY_MB
+#define SYSTEM_MEMORY_MB     128
+#endif
 
 // Number of entries in a page directory
 #define PAGE_ENTRY_COUNT     1024
@@ -22,7 +24,9 @@
 #define RECURSIVE_PAGE_DIRECTORY_INDEX 1023u
 
 // Maximum usable page frame. Default count: 128 MiB / 4 KiB = 32768 frames
-#define PAGE_FRAME_MAX_COUNT (0x7FE0000u / PAGE_FRAME_SIZE)
+#define SYSTEM_MEMORY_BYTES  ((uint32_t)SYSTEM_MEMORY_MB << 20)
+#define PAGE_FRAME_MAX_COUNT \
+    ((SYSTEM_MEMORY_BYTES < 0x7FE0000u ? SYSTEM_MEMORY_BYTES : 0x7FE0000u) / PAGE_FRAME_SIZE)
 
 // kernel's  page directory, using 4 KiB pages
 extern struct PageDirectory _paging_kernel_page_directory;
@@ -81,6 +85,8 @@ struct PageDirectoryEntry {
     uint32_t ignored         : 3;
     uint32_t page_table_addr : 20;
 } __attribute__((packed));
+
+#define PTE_AVAILABLE_SWAPPED 0x1u
 
 /**
  * Page Table Entry, untuk page berukuran 4 KiB.
@@ -196,5 +202,14 @@ bool paging_allocate_user_page_frame(struct PageDirectory *page_dir, void *virtu
  * @return              Will return true if success, false otherwise
  */
 bool paging_free_user_page_frame(struct PageDirectory *page_dir, void *virtual_addr);
+
+extern struct PageManagerState page_manager_state;
+
+void paging_init(void);
+
+bool paging_get_free_frame(uint32_t *frame_number);
+
+struct PageTableEntry *paging_get_page_table_entry(struct PageDirectory *page_dir, void *virtual_addr);
+
 
 #endif
