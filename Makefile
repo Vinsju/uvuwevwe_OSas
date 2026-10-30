@@ -11,7 +11,7 @@ SOURCE_FOLDER = src
 OUTPUT_FOLDER = bin
 ISO_NAME      = uvuwevwe_OSas
 DISK_IMAGE    = $(OUTPUT_FOLDER)/storage.bin
-DISK_SIZE     = 4M
+DISK_SIZE     = 8M
 
 # Flags
 WARNING_CFLAG = -Wall -Wextra -Werror
@@ -40,6 +40,7 @@ kernel:
 # TODO: Compile C file with CFLAGS
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/kernel.c -o $(OUTPUT_FOLDER)/kernel.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/paging.c -o $(OUTPUT_FOLDER)/paging.o
+		@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/swap.c -o $(OUTPUT_FOLDER)/swap.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/gdt.c -o $(OUTPUT_FOLDER)/gdt.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/pic.c -o $(OUTPUT_FOLDER)/pic.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/idt.c -o $(OUTPUT_FOLDER)/idt.o
