@@ -32,8 +32,6 @@ build: iso
 clean:
 	rm -rf $(OUTPUT_FOLDER)/*.o $(OUTPUT_FOLDER)/*.iso $(OUTPUT_FOLDER)/kernel $(OUTPUT_FOLDER)/shell $(OUTPUT_FOLDER)/shell_elf
 
-
-
 kernel:
 	@$(ASM) $(AFLAGS) $(SOURCE_FOLDER)/kernel-entrypoint.s -o $(OUTPUT_FOLDER)/kernel-entrypoint.o
 	@$(ASM) $(AFLAGS) $(SOURCE_FOLDER)/cpu/isr.s -o $(OUTPUT_FOLDER)/isr-asm.o
@@ -64,15 +62,15 @@ iso: kernel
 	@cp $(SOURCE_FOLDER)/menu.lst   $(OUTPUT_FOLDER)/iso/boot/grub/
 # TODO: Create ISO image
 	@$(ISO) -R \
-    	-b boot/grub/grub1 \
-    	-no-emul-boot \
-    	-boot-load-size 4 \
-    	-A os \
+		-b boot/grub/grub1 \
+		-no-emul-boot \
+		-boot-load-size 4 \
+		-A os \
 		-input-charset utf8 \
-    	-quiet \
-    	-boot-info-table \
-    	-o $(OUTPUT_FOLDER)/$(ISO_NAME).iso \
-    	$(OUTPUT_FOLDER)/iso
+		-quiet \
+		-boot-info-table \
+		-o $(OUTPUT_FOLDER)/$(ISO_NAME).iso \
+		$(OUTPUT_FOLDER)/iso
 	@rm -r $(OUTPUT_FOLDER)/iso/
 
 disk:
@@ -91,3 +89,15 @@ user-shell:
 	@echo Linking object shell object files and generate ELF32 for debugging...
 	@wc -c $(OUTPUT_FOLDER)/shell
 	@rm -f *.o
+
+inserter:
+	@$(CC) -g -I$(SOURCE_FOLDER) \
+		$(SOURCE_FOLDER)/stdlib/string.c \
+		$(SOURCE_FOLDER)/ext2.c \
+		$(SOURCE_FOLDER)/external/external-inserter.c \
+		-o $(OUTPUT_FOLDER)/inserter
+
+insert-shell: inserter user-shell
+	@echo Inserting shell into root directory...
+	@cd $(OUTPUT_FOLDER); ./inserter shell 1 storage.bin
+	

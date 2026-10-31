@@ -185,6 +185,16 @@ bool paging_allocate_user_page_frame(struct PageDirectory *page_dir, void *virtu
     return true;
 }
 
+bool paging_allocate_user_region(struct PageDirectory *page_dir, void *start, uint32_t page_count) {
+    for (uint32_t i = 0; i < page_count; i++) {
+        void *addr = (void *)((uint32_t) start + i * PAGE_FRAME_SIZE);
+        if (!paging_allocate_user_page_frame(page_dir, addr)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool paging_free_user_page_frame(struct PageDirectory *page_dir, void *virtual_addr) {
 
 

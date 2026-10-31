@@ -201,6 +201,9 @@ bool paging_allocate_user_page_frame(struct PageDirectory *page_dir, void *virtu
  * @param virtual_addr  Virtual address to be allocated
  * @return              Will return true if success, false otherwise
  */
+
+bool paging_allocate_user_region(struct PageDirectory *page_dir, void *start, uint32_t page_count);
+
 bool paging_free_user_page_frame(struct PageDirectory *page_dir, void *virtual_addr);
 
 extern struct PageManagerState page_manager_state;

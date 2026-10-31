@@ -858,10 +858,6 @@ int8_t read(struct EXT2DriverRequest request){
         return 2;
     }
 
-    if (file.i_size > 0 && request.buf == NULL) {
-        return -1;
-    }
-
     uint8_t *dst = (uint8_t *)request.buf;
     uint8_t tmp[BLOCK_SIZE];
 
