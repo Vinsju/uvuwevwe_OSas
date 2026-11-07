@@ -10,24 +10,29 @@
 static uint8_t cursor_row = 0;
 static uint8_t cursor_col = 0;
 
-/* Geser seluruh isi layar 1 baris ke atas, baris terakhir dikosongkan */
+static void terminal_clear_row(uint8_t row)
+{
+    for (uint8_t col = 0; col < TERMINAL_WIDTH; col++)
+    {
+        framebuffer_write(row, col, ' ', TERMINAL_DEFAULT_COLOR, 0);
+    }
+}
+
+/* Geser area teks 1 baris ke atas, baris teks terakhir dikosongkan. Status line tidak ikut bergeser */
 static void terminal_scroll(void)
 {
     uint8_t *fb = FRAMEBUFFER_MEMORY_OFFSET;
-    memmove(fb, fb + TERMINAL_ROW_BYTES, TERMINAL_ROW_BYTES * (TERMINAL_HEIGHT - 1));
-    for (uint8_t col = 0; col < TERMINAL_WIDTH; col++)
-    {
-        framebuffer_write(TERMINAL_HEIGHT - 1, col, ' ', TERMINAL_DEFAULT_COLOR, 0);
-    }
+    memmove(fb, fb + TERMINAL_ROW_BYTES, TERMINAL_ROW_BYTES * (TERMINAL_TEXT_HEIGHT - 1));
+    terminal_clear_row(TERMINAL_TEXT_HEIGHT - 1);
 }
 
 static void terminal_newline(void)
 {
     cursor_col = 0;
-    if (cursor_row + 1 >= TERMINAL_HEIGHT)
+    if (cursor_row + 1 >= TERMINAL_TEXT_HEIGHT)
     {
         terminal_scroll();
-        cursor_row = TERMINAL_HEIGHT - 1;
+        cursor_row = TERMINAL_TEXT_HEIGHT - 1;
     }
     else
     {
@@ -90,7 +95,10 @@ void terminal_puts(const char *str, uint32_t count, uint8_t color)
 
 void terminal_clear(void)
 {
-    framebuffer_clear();
+    for (uint8_t row = 0; row < TERMINAL_TEXT_HEIGHT; row++)
+    {
+        terminal_clear_row(row);
+    }
     cursor_row = 0;
     cursor_col = 0;
     framebuffer_set_cursor(0, 0);
@@ -98,7 +106,7 @@ void terminal_clear(void)
 
 void terminal_set_cursor(uint8_t row, uint8_t col)
 {
-    cursor_row = row < TERMINAL_HEIGHT ? row : TERMINAL_HEIGHT - 1;
+    cursor_row = row < TERMINAL_TEXT_HEIGHT ? row : TERMINAL_TEXT_HEIGHT - 1;
     cursor_col = col < TERMINAL_WIDTH ? col : TERMINAL_WIDTH - 1;
     framebuffer_set_cursor(cursor_row, cursor_col);
 }
@@ -107,4 +115,17 @@ void terminal_get_cursor(uint8_t *row, uint8_t *col)
 {
     *row = cursor_row;
     *col = cursor_col;
+}
+
+void terminal_write_at(uint8_t row, uint8_t col, const char *str, uint32_t count, uint8_t color)
+{
+    if (row >= TERMINAL_HEIGHT)
+    {
+        return;
+    }
+    for (uint32_t i = 0; i < count && (uint32_t)col + i < TERMINAL_WIDTH; i++)
+    {
+        char c = (str[i] >= ' ' && str[i] <= '~') ? str[i] : ' ';
+        framebuffer_write(row, (uint8_t)(col + i), c, color & 0x0F, (color >> 4) & 0x0F);
+    }
 }

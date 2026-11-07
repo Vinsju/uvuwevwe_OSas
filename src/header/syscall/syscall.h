@@ -21,6 +21,9 @@
  *   9  | set cursor             | row                          | col                   | -
  *  10  | get cursor             | uint8_t *row                 | uint8_t *col          | -
  *  11  | FS ukuran file         | struct EXT2DriverRequest *   | int8_t *return code   | uint32_t *size
+ *  12  | exit                   | return code main()           | -                     | -
+ *  13  | waktu CMOS (RTC)       | struct CMOSTime *            | -                     | -
+ *  14  | puts di posisi tertentu| char * buffer                | jumlah karakter       | row | col << 8 | warna << 16
  *
  * Warna: 4 bit bawah = huruf, 4 bit atas = background.
  * Return code FS mengikuti spesifikasi CRUD Chapter 2, ditambah -1 jika argumen syscall invalid.
@@ -40,9 +43,15 @@
 #define SYSCALL_GET_CURSOR          10
 #define SYSCALL_FS_FILE_SIZE        11
 #define SYSCALL_EXIT                12
+#define SYSCALL_GET_TIME            13
+#define SYSCALL_PUTS_AT             14
+
+/* Helper untuk register edx SYSCALL_PUTS_AT: posisi & warna dikemas dalam 1 register */
+#define SYSCALL_PUTS_AT_POS(row, col, color) \
+    ((uint32_t)(row) | ((uint32_t)(col) << 8) | ((uint32_t)(color) << 16))
 
 /**
- * Handler kernel untuk interrupt 0x30. Dipanggil dari isr_syscall_handler (cpu/isr.s)
+ * Handler kernel untuk interrupt 0x30. Dipanggil dari main_interrupt_handler (cpu/interrupt.c)
  * dengan nilai register eax, ebx, ecx, edx milik user program.
  */
 uint32_t syscall_handler(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx);

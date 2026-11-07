@@ -33,4 +33,9 @@ SECTIONS
         *(COMMON)
         *(.bss)
     }
+
+    /* Kernel page table hanya memetakan 4 MiB fisik pertama (KERNEL_RESERVED_PAGE_FRAME_COUNT),
+       termasuk page_directory_list milik Multi Virtual Address Space */
+    _linker_kernel_end = .;
+    ASSERT ((_linker_kernel_end <= KERNEL_VIRTUAL_BASE + 0x400000), "Error: Kernel lebih dari 4 MiB fisik, tidak termapping kernel page table")
 }

@@ -163,7 +163,6 @@ void update_page_directory_entry(
  */
 struct PageTable *paging_get_page_table(struct PageDirectory *page_dir, uint32_t page_directory_index);
 
-struct PageDirectory *paging_get_current_page_directory_addr(void);
 
 /**
  * Invalidate page that contain virtual address in parameter
@@ -207,6 +206,56 @@ bool paging_allocate_user_region(struct PageDirectory *page_dir, void *start, ui
 bool paging_free_user_page_frame(struct PageDirectory *page_dir, void *virtual_addr);
 
 extern struct PageManagerState page_manager_state;
+
+
+
+/* --- Process-related Memory Management (Book 4.1.1) --- */
+#define PAGING_DIRECTORY_TABLE_MAX_COUNT 32
+
+/**
+ * Create new page directory prefilled with page directory entry for kernel higher half mapping.
+ *
+ * Penyesuaian untuk paging 4 KiB kita (bukan 4 MiB seperti kit):
+ * - Entry higher half kernel (index 0x300 ke atas) disalin dari _paging_kernel_page_directory,
+ *   sehingga semua page directory berbagi page table kernel yang sama.
+ * - Entry 1023 diisi recursive mapping ke page directory baru itu sendiri.
+ * - Bagian user (index 0 - 0x2FF) kosong.
+ *
+ * Catatan pemakaian: fungsi paging lain (paging_allocate_user_page_frame, dsb.) memakai
+ * recursive mapping, jadi hanya bisa mengubah page directory yang sedang aktif.
+ * Untuk mengisi page directory baru: paging_use_page_directory(baru) -> alokasi / load
+ * executable -> paging_use_page_directory(lama).
+ *
+ * @return Pointer to page directory virtual address. Return NULL if allocation failed
+ */
+struct PageDirectory* paging_create_new_page_directory(void);
+
+/**
+ * Free page directory and delete all page directory entry.
+ * Semua page frame user, slot swap, dan page table milik page directory ini ikut dibebaskan.
+ * Jika page directory yang dihapus sedang aktif, CR3 dipindah ke _paging_kernel_page_directory.
+ *
+ * @param page_dir Pointer to page directory virtual address
+ * @return         True if free operation success, false jika bukan page directory dari
+ *                 paging_create_new_page_directory() atau belum dipakai
+ */
+bool paging_free_page_directory(struct PageDirectory *page_dir);
+
+/**
+ * Get currently active page directory virtual address from CR3 register
+ *
+ * @note   Assuming page directories lives in kernel memory
+ * @return Page directory virtual address currently active (CR3)
+ */
+struct PageDirectory* paging_get_current_page_directory_addr(void);
+
+/**
+ * Change active page directory (indirectly trigger TLB flush for all non-global entry)
+ *
+ * @note                        Assuming page directories lives in kernel memory
+ * @param page_dir_virtual_addr Page directory virtual address to switch into
+ */
+void paging_use_page_directory(struct PageDirectory *page_dir_virtual_addr);
 
 void paging_init(void);
 

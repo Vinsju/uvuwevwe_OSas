@@ -17,11 +17,8 @@ struct TSSEntry {
 } __attribute__((packed));
 
 
+/* Handler kosong untuk vektor 0x40 - 0xFF. Vektor 0x00 - 0x3F memakai isr_stub_table (header/cpu/interrupt.h) */
 void isr_default_handler(void);
-void isr_timer_handler(void);
-void isr_keyboard_handler(void);
-void isr_syscall_handler(void);
-void isr_page_fault_handler(void);
 void isr_init(void);
 
 void set_tss_kernel_current_stack(void);

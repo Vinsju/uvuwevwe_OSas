@@ -1,4 +1,4 @@
-.PHONY: run all build kernel iso disk clean user-shell inserter insert-hello user-hello insert-shell
+.PHONY: run all build kernel iso disk clean user-shell inserter insert-hello user-hello insert-shell user-clock insert-clock
 # Compiler & linker
 LLVM_PREFIX   = $(shell brew --prefix llvm)
 LLD_PREFIX    = $(shell brew --prefix lld)
@@ -26,6 +26,7 @@ LFLAGS        = -T $(SOURCE_FOLDER)/linker.ld -melf_i386
 
 run: all
 	@qemu-system-i386 \
+		-rtc base=localtime \
 		-cdrom $(OUTPUT_FOLDER)/$(ISO_NAME).iso \
 		-drive file=$(DISK_IMAGE),format=raw
 all: build
@@ -34,6 +35,7 @@ build: iso
 kernel:
 	@$(ASM) $(AFLAGS) $(SOURCE_FOLDER)/kernel-entrypoint.s -o $(OUTPUT_FOLDER)/kernel-entrypoint.o
 	@$(ASM) $(AFLAGS) $(SOURCE_FOLDER)/cpu/isr.s -o $(OUTPUT_FOLDER)/isr-asm.o
+	@$(ASM) $(AFLAGS) $(SOURCE_FOLDER)/cpu/intsetup.s -o $(OUTPUT_FOLDER)/intsetup.o
 # TODO: Compile C file with CFLAGS
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/kernel.c -o $(OUTPUT_FOLDER)/kernel.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/paging.c -o $(OUTPUT_FOLDER)/paging.o
@@ -42,6 +44,7 @@ kernel:
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/pic.c -o $(OUTPUT_FOLDER)/pic.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/idt.c -o $(OUTPUT_FOLDER)/idt.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/isr.c -o $(OUTPUT_FOLDER)/isr.o
+	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/interrupt.c -o $(OUTPUT_FOLDER)/interrupt.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/keyboard.c -o $(OUTPUT_FOLDER)/keyboard.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/framebuffer.c -o $(OUTPUT_FOLDER)/framebuffer.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/portio.c -o $(OUTPUT_FOLDER)/portio.o
@@ -50,6 +53,7 @@ kernel:
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/ext2.c -o $(OUTPUT_FOLDER)/ext2.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/text/terminal.c -o $(OUTPUT_FOLDER)/terminal.o
 	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/syscall.c -o $(OUTPUT_FOLDER)/syscall.o
+	@$(CC) $(CFLAGS) $(SOURCE_FOLDER)/cpu/cmos.c -o $(OUTPUT_FOLDER)/cmos.o
 	@$(LIN) $(LFLAGS) $(OUTPUT_FOLDER)/*.o -o $(OUTPUT_FOLDER)/kernel
 	@echo Linking object files and generate elf32...
 	@rm -f $(OUTPUT_FOLDER)/*.o
@@ -80,7 +84,7 @@ clean:
 	@rm -f $(OUTPUT_FOLDER)/kernel
 	@rm -f $(OUTPUT_FOLDER)/$(ISO_NAME).iso
 	@rm -f $(OUTPUT_FOLDER)/*.o
-	@rm -f crt0.o user-shell.o string.o hello-world.o
+	@rm -f crt0.o user-shell.o string.o hello-world.o clock.o
 	@rm -rf $(OUTPUT_FOLDER)/iso
 
 # Shell (Book 3.3.3 + 3.4.2.1): flat binary untuk dimasukkan ke storage, ELF32 untuk debugging symbol
@@ -123,6 +127,24 @@ user-hello:
 	@echo Generating ELF32 for debugging...
 	@wc -c $(OUTPUT_FOLDER)/hello
 	@rm -f *.o
+
+# Clock (Book 4.3.3): user program jam di pojok kanan bawah, dijalankan dengan exec clock
+user-clock:
+	@$(ASM) $(AFLAGS) $(SOURCE_FOLDER)/crt0.s -o crt0.o
+	@$(CC) $(CFLAGS) -fno-pie $(SOURCE_FOLDER)/external/clock.c -o clock.o
+	@$(LIN) -T $(SOURCE_FOLDER)/user-linker.ld -melf_i386 --oformat=binary \
+		crt0.o clock.o -o $(OUTPUT_FOLDER)/clock
+	@echo Linking Clock and generating flat binary...
+	@$(LIN) -T $(SOURCE_FOLDER)/user-linker.ld -melf_i386 \
+		crt0.o clock.o -o $(OUTPUT_FOLDER)/clock_elf
+	@echo Generating ELF32 for debugging...
+	@wc -c $(OUTPUT_FOLDER)/clock
+	@rm -f *.o
+
+# Insert Clock into EXT2 filesystem
+insert-clock: inserter user-clock
+	@echo Inserting Clock into EXT2 filesystem...
+	@cd $(OUTPUT_FOLDER); ./inserter -f clock 1 storage.bin
 
 # Insert Shell into EXT2 filesystem
 insert-shell: inserter user-shell

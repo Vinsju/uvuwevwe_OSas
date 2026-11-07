@@ -5,6 +5,7 @@
 #include "header/filesystem/ext2.h"
 #include "header/cpu/keyboard.h"
 #include "header/text/terminal.h"
+#include "header/cpu/cmos.h"
 
 /* Semua alamat milik user berada di bawah higher half kernel */
 #define USER_SPACE_END 0xC0000000u
@@ -146,6 +147,25 @@ uint32_t syscall_handler(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx)
         }
         break;
     
+    case SYSCALL_GET_TIME:
+        if (ebx != 0 && user_range_ok(ebx, sizeof(struct CMOSTime)))
+        {
+            cmos_read_time((struct CMOSTime *)ebx);
+        }
+        break;
+
+    case SYSCALL_PUTS_AT:
+        if (ecx <= TERMINAL_WIDTH && user_range_ok(ebx, ecx))
+        {
+            terminal_write_at(
+                (uint8_t)(edx & 0xFF),
+                (uint8_t)((edx >> 8) & 0xFF),
+                (const char *)ebx,
+                ecx,
+                (uint8_t)((edx >> 16) & 0xFF));
+        }
+        break;
+
     case SYSCALL_EXIT:
         return 1; 
 
