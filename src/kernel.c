@@ -9,6 +9,7 @@
 #include "header/disk.h"
 #include "header/filesystem/ext2.h"
 #include "header/memory/paging.h"
+#include "header/process/scheduler.h"
 
 
 void kernel_setup(void) {
@@ -53,6 +54,8 @@ void kernel_setup(void) {
 
     // Siapkan kernel stack untuk interrupt dari Ring 3
     set_tss_kernel_current_stack();
+
+    scheduler_init();
 
     __asm__ volatile ("sti");
 
