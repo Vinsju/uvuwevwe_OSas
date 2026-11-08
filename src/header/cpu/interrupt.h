@@ -46,6 +46,19 @@
 /* Jumlah stub di isr_stub_table (cpu/intsetup.s): 32 exception CPU + 32 IRQ / user defined */
 #define ISR_STUB_TABLE_LIMIT 64
 
+#define PIT_MAX_FREQUENCY   1193182
+#define PIT_TIMER_FREQUENCY 1000
+#define PIT_TIMER_COUNTER   (PIT_MAX_FREQUENCY / PIT_TIMER_FREQUENCY)
+
+#define PIT_COMMAND_REGISTER_PIO          0x43
+#define PIT_COMMAND_VALUE_BINARY_MODE     0b0
+#define PIT_COMMAND_VALUE_OPR_SQUARE_WAVE (0b011 << 1)
+#define PIT_COMMAND_VALUE_ACC_LOHIBYTE    (0b11  << 4)
+#define PIT_COMMAND_VALUE_CHANNEL         (0b00  << 6) 
+#define PIT_COMMAND_VALUE (PIT_COMMAND_VALUE_BINARY_MODE | PIT_COMMAND_VALUE_OPR_SQUARE_WAVE | PIT_COMMAND_VALUE_ACC_LOHIBYTE | PIT_COMMAND_VALUE_CHANNEL)
+
+#define PIT_CHANNEL_0_DATA_PIO 0x40
+
 /**
  * CPURegister, store CPU registers values.
  * Urutan field mengikuti urutan memory hasil pushad + push segment di intsetup.s.
@@ -131,5 +144,11 @@ extern void *isr_stub_table[ISR_STUB_TABLE_LIMIT];
  * @param frame Information about CPU during interrupt is raised
  */
 void main_interrupt_handler(struct InterruptFrame frame);
+
+/**
+ * Mengatur PIT channel 0 agar menembakkan IRQ0 secara periodik,
+ * lalu meng-unmask IRQ0 di PIC master.
+ */
+void activate_timer_interrupt(void);
 
 #endif

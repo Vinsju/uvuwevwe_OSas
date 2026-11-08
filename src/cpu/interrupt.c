@@ -3,6 +3,7 @@
 #include "header/cpu/keyboard.h"
 #include "header/syscall/syscall.h"
 #include "header/memory/swap.h"
+#include "header/cpu/portio.h"
 
 /* Didefinisikan di kernel-entrypoint.s: kembali ke kernel_setup() setelah SYSCALL_EXIT */
 extern void kernel_return_from_user(void) __attribute__((noreturn));
@@ -56,4 +57,18 @@ void main_interrupt_handler(struct InterruptFrame frame) {
         irq_handler(int_number - PIC1_OFFSET);
     }
     // Exception CPU lain belum ditangani, perilaku sama dengan isr_default_handler lama
+}
+
+
+void activate_timer_interrupt(void) {
+    __asm__ volatile("cli");
+
+    // Atur seberapa sering PIT menembakkan IRQ0
+    uint32_t pit_timer_counter_to_fire = PIT_TIMER_COUNTER;
+    out(PIT_COMMAND_REGISTER_PIO, PIT_COMMAND_VALUE);
+    out(PIT_CHANNEL_0_DATA_PIO, (uint8_t) (pit_timer_counter_to_fire & 0xFF));
+    out(PIT_CHANNEL_0_DATA_PIO, (uint8_t) ((pit_timer_counter_to_fire >> 8) & 0xFF));
+
+    // Unmask IRQ0 di PIC master
+    pic_unmask_irq(IRQ_TIMER);
 }
