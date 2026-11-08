@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#define ceil_div(a,b) (((a) + (b) - 1) / (b))
+
 /**
  * C standard memset, check man memset or
  * https://man7.org/linux/man-pages/man3/memset.3.html for more details
