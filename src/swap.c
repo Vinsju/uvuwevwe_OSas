@@ -205,10 +205,17 @@ static void print_hex(uint8_t row, uint8_t col, uint32_t value, uint8_t color) {
     print_text(row, col, text, color);
 }
 
+#define USER_DEMAND_REGION_END 0x00400000u
+
 void page_fault_handler(uint32_t fault_address, uint32_t error_code) {
     if (!(error_code & 0x1) && fault_address < KERNEL_VIRTUAL_BASE) {
-        struct PageTableEntry *entry = paging_get_page_table_entry(paging_get_current_page_directory_addr(), (void *) fault_address);
-        if (entry != NULL && !entry->flag.present_bit && (entry->ignored & PTE_AVAILABLE_SWAPPED) && swap_in(entry, fault_address & PAGE_MASK)) {
+        struct PageDirectory *page_dir = paging_get_current_page_directory_addr();
+        struct PageTableEntry *entry = paging_get_page_table_entry(page_dir, (void *) fault_address);
+        bool swapped = entry != NULL && !entry->flag.present_bit && (entry->ignored & PTE_AVAILABLE_SWAPPED);
+        if (swapped && swap_in(entry, fault_address & PAGE_MASK)) {
+            return;
+        }
+        if (!swapped && fault_address < USER_DEMAND_REGION_END && paging_allocate_user_page_frame(page_dir, (void *) (fault_address & PAGE_MASK))) {
             return;
         }
     }

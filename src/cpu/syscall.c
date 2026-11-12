@@ -7,6 +7,7 @@
 #include "header/text/terminal.h"
 #include "header/cpu/cmos.h"
 #include "header/process/process.h"
+#include "header/memory/swap.h"
 
 /* Semua alamat milik user berada di bawah higher half kernel */
 #define USER_SPACE_END 0xC0000000u
@@ -65,6 +66,15 @@ static void syscall_fs(uint32_t service, uint32_t request_addr, uint32_t retcode
     }
 
     struct EXT2DriverRequest *request = (struct EXT2DriverRequest *)request_addr;
+    if (check_buffer && request->buffer_size > 0) {
+        uint32_t size = request->buffer_size;
+        uint32_t file_size;
+        
+        if (service == SYSCALL_FS_READ && get_file_size(*request, &file_size) == 0 && file_size < size) {
+            size = file_size;
+        }
+        swap_prefault(request->buf, size);
+    }
     switch (service)
     {
     case SYSCALL_FS_READ:
