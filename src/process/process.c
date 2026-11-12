@@ -84,7 +84,7 @@ int32_t process_create_user_process(struct EXT2DriverRequest request) {
     }
 
     // Ensure entrypoint is not located at kernel's section at higher half
-    if (((uint32_t) request.buf >= KERNEL_VIRTUAL_ADDRESS_BASE) || ((uint32_t) request.buf & (PAGE_FRAME_SIZE-1) != 0)) {
+    if (((uint32_t) request.buf >= KERNEL_VIRTUAL_ADDRESS_BASE) || (((uint32_t) request.buf & (PAGE_FRAME_SIZE-1)) != 0)) {
         retcode = PROCESS_CREATE_FAIL_INVALID_ENTRYPOINT;
         goto exit_cleanup;
     }
