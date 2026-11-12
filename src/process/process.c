@@ -155,7 +155,7 @@ int32_t process_create_user_process(struct EXT2DriverRequest request) {
     ctx->cpu.segment.ds = GDT_USER_DATA_SEGMENT_SELECTOR | 0x3;
     ctx->cpu.segment.es = GDT_USER_DATA_SEGMENT_SELECTOR | 0x3;
     ctx->cpu.segment.fs = GDT_USER_DATA_SEGMENT_SELECTOR | 0x3;
-    ctx->cpu.segment.gs = GDT_USER_DATA_SEGMENT_SELECTOR | 0x5;
+    ctx->cpu.segment.gs = GDT_USER_DATA_SEGMENT_SELECTOR | 0x3;
     ctx->cpu.stack.esp = PROCESS_USER_STACK_TOP;
     ctx->cpu.stack.ebp = PROCESS_USER_STACK_TOP;
     ctx->eip = (uint32_t) request.buf;
