@@ -146,11 +146,11 @@ kernel_execute_user_program:
 
     push eax            ; SS user = 0x23
 
-    mov eax, ecx
-    add eax, 0x400000 - 4
-    push eax            ; ESP user
+    mov eax, 0xBFFFFFFC
+    push eax            ; ESP user = puncak stack process (PROCESS_USER_STACK_TOP)
 
     pushfd              ; EFLAGS
+    or dword [esp], 0x200 ; nyalakan Interrupt Flag supaya keyboard & timer jalan di ring 3
 
     mov eax, 0x18 | 0x3
     push eax            ; CS user = 0x1B

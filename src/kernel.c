@@ -30,13 +30,7 @@ void kernel_setup(void) {
     gdt_install_tss();
     set_tss_register();
 
-    if (!paging_allocate_user_region(&_paging_kernel_page_directory, (void *) 0, 1024)) {
-        framebuffer_write(1, 0, 'P', 0x0C, 0x00);
-        while (true);
-    }
-    framebuffer_write(1, 0, '1', 0x0F, 0x00);
-
-    // Load Shell dari root disk ke address 0
+    // Shell request
     struct EXT2DriverRequest request = {
         .buf = (uint8_t *) 0,
         .name = "shell",
@@ -45,22 +39,22 @@ void kernel_setup(void) {
         .buffer_size = 0x100000,
     };
 
-    if (read(request) != 0) {
-        framebuffer_write(1, 0, 'R', 0x0C, 0x00);
-        while (true);
-    }
-
-    framebuffer_write(1, 0, '2', 0x0F, 0x00);
-
-    // Siapkan kernel stack untuk interrupt dari Ring 3
     set_tss_kernel_current_stack();
+
+    // Create & Execute process 0
+    int32_t retcode = process_create_user_process(request);
+    if (retcode != PROCESS_CREATE_SUCCESS) {
+        framebuffer_write(1, 0, 'P', 0x0C, 0x00);
+        framebuffer_write(1, 1, '0' + retcode, 0x0C, 0x00);
+        while(true);
+    }
 
     scheduler_init();
 
-    __asm__ volatile ("sti");
+    _process_list[0].metadata.state = PROCESS_STATE_RUNNING;
 
-    // Jalankan Hello World di Ring 3
-    kernel_execute_user_program((uint8_t *) 0);
+    paging_use_page_directory(_process_list[0].context.page_directory_virtual_addr);
+    kernel_execute_user_program((void *) 0x0);
 
     // Penanda: kernel berhasil menerima kembali kontrol setelah EXIT
     framebuffer_write(2, 0, 'E', 0x0A, 0x00);
