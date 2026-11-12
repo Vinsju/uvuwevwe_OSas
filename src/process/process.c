@@ -174,9 +174,9 @@ exit_cleanup:
         if (new_page_dir != NULL) {
             paging_free_page_directory(new_page_dir);
         }
-    }
-    if (new_pcb != NULL) {
-        memset(new_pcb, 0, sizeof(struct ProcessControlBlock));
+        if (new_pcb != NULL) {
+            memset(new_pcb, 0, sizeof(struct ProcessControlBlock));
+        }
     }
 
     paging_use_page_directory(old_page_dir);
@@ -214,4 +214,3 @@ uint32_t process_get_info(struct ProcessInfo *info, uint32_t max_count) {
     }
     return count;
 }
-
