@@ -145,6 +145,8 @@ int32_t process_create_user_process(struct EXT2DriverRequest request) {
     }
 
     //Kalau ada halaman baru ter-swap, masukkan dulu sebelum ATA menulis ke buffer
+    swap_prefault(request.buf, file_size);
+    
     if (read(request) != 0) {
         retcode = PROCESS_CREATE_FAIL_FS_READ_FAILURE;
         goto exit_cleanup;
