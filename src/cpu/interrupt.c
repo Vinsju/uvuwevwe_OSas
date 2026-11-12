@@ -4,6 +4,7 @@
 #include "header/syscall/syscall.h"
 #include "header/memory/swap.h"
 #include "header/cpu/portio.h"
+#include "header/process/scheduler.h"
 
 /* Didefinisikan di kernel-entrypoint.s: kembali ke kernel_setup() setelah SYSCALL_EXIT */
 extern void kernel_return_from_user(void) __attribute__((noreturn));
@@ -41,8 +42,11 @@ static void syscall_dispatch(struct InterruptFrame *frame) {
     );
 
     // syscall_handler() mengembalikan 1 untuk SYSCALL_EXIT (perilaku sama dengan isr.s lama)
-    if (result == 1) {
+    if (result == SYSCALL_RESULT_RETURN_TO_KERNEL) {
         kernel_return_from_user();
+    }
+    else if (result == SYSCALL_RESULT_SWITCH_PROCESS) {
+        scheduler_switch_to_next_process();
     }
 }
 
