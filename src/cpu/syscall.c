@@ -6,6 +6,7 @@
 #include "header/cpu/keyboard.h"
 #include "header/text/terminal.h"
 #include "header/cpu/cmos.h"
+#include "header/process/process.h"
 
 /* Semua alamat milik user berada di bawah higher half kernel */
 #define USER_SPACE_END 0xC0000000u
@@ -166,8 +167,52 @@ uint32_t syscall_handler(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx)
         }
         break;
 
-    case SYSCALL_EXIT:
-        return 1; 
+    case SYSCALL_PROCESS_CREATE:
+    // ebx = request
+    // ecx = *retcode
+        if (ecx != 0 && user_range_ok(ecx, sizeof(int32_t))) {
+            int32_t *retcode = (int32_t *)ecx;
+            if (!user_request_ok(ebx, false)) {
+                *retcode = -1;
+            }
+            else {
+                *retcode = process_create_user_process(*(struct EXT2DriverRequest *)ebx);
+            }
+        }
+        break;
+    
+        case SYSCALL_PROCESS_KIL:
+        {    
+            struct ProcessControlBlock *current = process_get_current_running_pcb_pointer();
+            bool kill_self = current != NULL && current->metadata.pid == ebx;
+            bool ok = process_destroy(ebx);
+            if (kill_self && ok) {
+                return SYSCALL_RESULT_SWITCH_PROCESS;
+            }
+            if (ecx != 0 && user_range_ok(ecx, sizeof(int8_t))) {
+                *(int8_t *)ecx = ok ? 1 : 0;
+            }
+            break;
+        }
+
+        case SYSCALL_PROCESS_INFO:
+            if (edx != 0 && user_range_ok(edx, sizeof(uint32_t)) && ecx <= PROCESS_COUNT_MAX && user_range_ok(ebx, ecx * sizeof(struct ProcessInfo))) {
+                *(uint32_t *)edx = process_get_info((struct ProcessInfo *)ebx, ecx);
+            }
+            break;
+
+        case SYSCALL_EXIT:
+        {
+            struct ProcessControlBlock *current = process_get_current_running_pcb_pointer();
+
+            if (current == NULL) {
+                return SYSCALL_RESULT_RETURN_TO_KERNEL;
+            }
+
+            process_destroy(current->metadata.pid);
+            return SYSCALL_RESULT_SWITCH_PROCESS;
+        }
+
 
     default:
         break;
