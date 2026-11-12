@@ -181,7 +181,7 @@ uint32_t syscall_handler(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx)
         }
         break;
     
-        case SYSCALL_PROCESS_KIL:
+        case SYSCALL_PROCESS_KILL:
         {    
             struct ProcessControlBlock *current = process_get_current_running_pcb_pointer();
             bool kill_self = current != NULL && current->metadata.pid == ebx;

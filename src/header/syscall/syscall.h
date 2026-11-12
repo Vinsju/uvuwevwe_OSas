@@ -49,7 +49,7 @@
 #define SYSCALL_GET_TIME            13
 #define SYSCALL_PUTS_AT             14
 #define SYSCALL_PROCESS_CREATE      15
-#define SYSCALL_PROCESS_KIL         16
+#define SYSCALL_PROCESS_KILL         16
 #define SYSCALL_PROCESS_INFO        17
 
 #define PROCESS_INFO_NAME_LENGTH 32
