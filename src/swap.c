@@ -33,27 +33,40 @@ static uint32_t swap_used_count; // Berapa slot yang sedang terisi
  */
 
  #define FIFO_CAP PAGE_FRAME_MAX_COUNT
- static uint32_t fifo_page[FIFO_CAP];
+
+ struct SwapFifoEntry {
+    struct PageDirectory *page_dir;
+    uint32_t virtual_address;
+ };
+
+ static struct SwapFifoEntry fifo_page[FIFO_CAP];
  static uint32_t fifo_head; // elemen paling depan
  static uint32_t fifo_count; //jumlah elemen di antrean
 
  // Masukkan alamat ke belakang antrean
- static void fifo_push(uint32_t virtual_address) {
+ static void fifo_push(struct PageDirectory *page_dir, uint32_t virtual_address) {
     if (fifo_count == FIFO_CAP) {
-        fifo_head = (fifo_head + 1) & FIFO_CAP;
+        fifo_head = (fifo_head + 1) % FIFO_CAP;
         fifo_count--;
     }
-    fifo_page[(fifo_head + fifo_count) % FIFO_CAP] = virtual_address;
+
+    struct SwapFifoEntry *slot = &fifo_page[(fifo_head + fifo_count) % FIFO_CAP];
+    slot->page_dir = page_dir;
+    slot->virtual_address = virtual_address;
     fifo_count++;
  }
 
 // Ambil alamat dari belakang antrean
-static bool fifo_pop(uint32_t *virtual_address) {
+static bool fifo_pop(struct SwapFifoEntry *out) {
     if (fifo_count == 0) return false;
-    *virtual_address = fifo_page[fifo_head];
+    *out = fifo_page[fifo_head];
     fifo_head = (fifo_head + 1) % FIFO_CAP;
     fifo_count--;
     return true;
+}
+
+static bool swap_page_dir_alive(struct PageDirectory *page_dir) {
+    return page_dir != NULL && page_dir->table[RECURSIVE_PAGE_DIRECTORY_INDEX].flag.present_bit && page_dir->table[KERNEL_VIRTUAL_BASE >> 22].flag.present_bit;
 }
 
 // Cari slot kosong pertama
@@ -88,7 +101,7 @@ static uint32_t slot_to_block(uint32_t slot) {
 }
 
 void swap_track_page(void *virtual_address) {
-    fifo_push((uint32_t) virtual_address & PAGE_MASK);
+    fifo_push(paging_get_current_page_directory_addr(), (uint32_t) virtual_address & PAGE_MASK);
 }
 
 /* SWAP OUT: RAM -> DISK 
@@ -101,20 +114,29 @@ void swap_track_page(void *virtual_address) {
 */
 bool swap_evict_one(uint32_t *frame_number) {
     struct PageDirectory *page_dir = paging_get_current_page_directory_addr();
-    uint32_t virtual_address;
+    struct SwapFifoEntry victim;
 
-    while (fifo_pop(&virtual_address)) {
-        struct PageTableEntry *entry = paging_get_page_table_entry(page_dir, (void *) virtual_address);
+    while (fifo_pop(&victim)) {
+        if (!swap_page_dir_alive(victim.page_dir)) continue;
 
-        if (entry == NULL || !entry->flag.present_bit) continue; // Entri basi
+        bool switched = victim.page_dir != page_dir;
+        if (switched) paging_use_page_directory(victim.page_dir);
+
+        struct PageTableEntry *entry = paging_get_page_table_entry(victim.page_dir, (void *) victim.virtual_address);
+
+        if (entry == NULL || !entry->flag.present_bit) {
+            if (switched) paging_use_page_directory(page_dir);
+            continue;
+        } // Entri basi
 
         uint32_t slot;
         if (!swap_alloc_slot(&slot)) { // Swap penuh
-            fifo_push(virtual_address);
+            if (switched) paging_use_page_directory(page_dir);
+            fifo_push(victim.page_dir, victim.virtual_address);
             return false;
         }
 
-        write_blocks((void *) virtual_address, slot_to_block(slot), SWAP_BLOCKS_PER_PAGE);
+        write_blocks((void *) victim.virtual_address, slot_to_block(slot), SWAP_BLOCKS_PER_PAGE);
 
         // Simpan nomor framse sebelum PTE dikosongkan
         uint32_t frame = entry->frame_addr;
@@ -122,7 +144,9 @@ bool swap_evict_one(uint32_t *frame_number) {
         entry->ignored = PTE_AVAILABLE_SWAPPED;
         entry->frame_addr = slot;
 
-        flush_single_tlb((void *) virtual_address);
+        flush_single_tlb((void *) victim.virtual_address);
+
+        if (switched) paging_use_page_directory(page_dir);
 
         *frame_number = frame;
         return true;
@@ -181,10 +205,20 @@ static void print_hex(uint8_t row, uint8_t col, uint32_t value, uint8_t color) {
     print_text(row, col, text, color);
 }
 
+#define USER_DEMAND_REGION_END 0x00400000u
+#define USER_STACK_DEMAND_START 0xBFC00000u
+
 void page_fault_handler(uint32_t fault_address, uint32_t error_code) {
     if (!(error_code & 0x1) && fault_address < KERNEL_VIRTUAL_BASE) {
-        struct PageTableEntry *entry = paging_get_page_table_entry(paging_get_current_page_directory_addr(), (void *) fault_address);
-        if (entry != NULL && !entry->flag.present_bit && (entry->ignored & PTE_AVAILABLE_SWAPPED) && swap_in(entry, fault_address & PAGE_MASK)) {
+        struct PageDirectory *page_dir = paging_get_current_page_directory_addr();
+        struct PageTableEntry *entry = paging_get_page_table_entry(page_dir, (void *) fault_address);
+        bool swapped = entry != NULL && !entry->flag.present_bit && (entry->ignored & PTE_AVAILABLE_SWAPPED);
+        if (swapped && swap_in(entry, fault_address & PAGE_MASK)) {
+            return;
+        }
+
+        bool demand_region = fault_address < USER_DEMAND_REGION_END || fault_address >= USER_STACK_DEMAND_START;
+        if (!swapped && demand_region && paging_allocate_user_page_frame(page_dir, (void *) (fault_address & PAGE_MASK))) {
             return;
         }
     }

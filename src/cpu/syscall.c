@@ -6,6 +6,8 @@
 #include "header/cpu/keyboard.h"
 #include "header/text/terminal.h"
 #include "header/cpu/cmos.h"
+#include "header/process/process.h"
+#include "header/memory/swap.h"
 
 /* Semua alamat milik user berada di bawah higher half kernel */
 #define USER_SPACE_END 0xC0000000u
@@ -64,6 +66,15 @@ static void syscall_fs(uint32_t service, uint32_t request_addr, uint32_t retcode
     }
 
     struct EXT2DriverRequest *request = (struct EXT2DriverRequest *)request_addr;
+    if (check_buffer && request->buffer_size > 0) {
+        uint32_t size = request->buffer_size;
+        uint32_t file_size;
+        
+        if (service == SYSCALL_FS_READ && get_file_size(*request, &file_size) == 0 && file_size < size) {
+            size = file_size;
+        }
+        swap_prefault(request->buf, size);
+    }
     switch (service)
     {
     case SYSCALL_FS_READ:
@@ -166,8 +177,52 @@ uint32_t syscall_handler(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx)
         }
         break;
 
-    case SYSCALL_EXIT:
-        return 1; 
+    case SYSCALL_PROCESS_CREATE:
+    // ebx = request
+    // ecx = *retcode
+        if (ecx != 0 && user_range_ok(ecx, sizeof(int32_t))) {
+            int32_t *retcode = (int32_t *)ecx;
+            if (!user_request_ok(ebx, false)) {
+                *retcode = -1;
+            }
+            else {
+                *retcode = process_create_user_process(*(struct EXT2DriverRequest *)ebx);
+            }
+        }
+        break;
+    
+        case SYSCALL_PROCESS_KILL:
+        {    
+            struct ProcessControlBlock *current = process_get_current_running_pcb_pointer();
+            bool kill_self = current != NULL && current->metadata.pid == ebx;
+            bool ok = process_destroy(ebx);
+            if (kill_self && ok) {
+                return SYSCALL_RESULT_SWITCH_PROCESS;
+            }
+            if (ecx != 0 && user_range_ok(ecx, sizeof(int8_t))) {
+                *(int8_t *)ecx = ok ? 1 : 0;
+            }
+            break;
+        }
+
+        case SYSCALL_PROCESS_INFO:
+            if (edx != 0 && user_range_ok(edx, sizeof(uint32_t)) && ecx <= PROCESS_COUNT_MAX && user_range_ok(ebx, ecx * sizeof(struct ProcessInfo))) {
+                *(uint32_t *)edx = process_get_info((struct ProcessInfo *)ebx, ecx);
+            }
+            break;
+
+        case SYSCALL_EXIT:
+        {
+            struct ProcessControlBlock *current = process_get_current_running_pcb_pointer();
+
+            if (current == NULL) {
+                return SYSCALL_RESULT_RETURN_TO_KERNEL;
+            }
+
+            process_destroy(current->metadata.pid);
+            return SYSCALL_RESULT_SWITCH_PROCESS;
+        }
+
 
     default:
         break;

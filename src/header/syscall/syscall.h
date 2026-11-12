@@ -24,6 +24,9 @@
  *  12  | exit                   | return code main()           | -                     | -
  *  13  | waktu CMOS (RTC)       | struct CMOSTime *            | -                     | -
  *  14  | puts di posisi tertentu| char * buffer                | jumlah karakter       | row | col << 8 | warna << 16
+ *  15 | buat process (exec)    | struct EXT2DriverRequest *   | int32_t *return code  | -
+ *  16 | kill process           | pid                          | int8_t *hasil (1 ok)  | -
+ *  17 | info process (ps)      | struct ProcessInfo * array   | kapasitas array       | uint32_t *jumlah
  *
  * Warna: 4 bit bawah = huruf, 4 bit atas = background.
  * Return code FS mengikuti spesifikasi CRUD Chapter 2, ditambah -1 jika argumen syscall invalid.
@@ -45,6 +48,20 @@
 #define SYSCALL_EXIT                12
 #define SYSCALL_GET_TIME            13
 #define SYSCALL_PUTS_AT             14
+#define SYSCALL_PROCESS_CREATE      15
+#define SYSCALL_PROCESS_KILL         16
+#define SYSCALL_PROCESS_INFO        17
+
+#define PROCESS_INFO_NAME_LENGTH 32
+struct ProcessInfo {
+    uint32_t pid;
+    char     name[PROCESS_INFO_NAME_LENGTH];
+    uint8_t  state;
+};
+
+#define SYSCALL_RESULT_NORMAL 0 // kembali ke process pemanggil
+#define SYSCALL_RESULT_RETURN_TO_KERNEL 1 // kembali ke kernel_setup()
+#define SYSCALL_RESULT_SWITCH_PROCESS 2 // pindah ke process lain
 
 /* Helper untuk register edx SYSCALL_PUTS_AT: posisi & warna dikemas dalam 1 register */
 #define SYSCALL_PUTS_AT_POS(row, col, color) \
