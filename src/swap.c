@@ -206,6 +206,7 @@ static void print_hex(uint8_t row, uint8_t col, uint32_t value, uint8_t color) {
 }
 
 #define USER_DEMAND_REGION_END 0x00400000u
+#define USER_STACK_DEMAND_START 0xBFC00000u
 
 void page_fault_handler(uint32_t fault_address, uint32_t error_code) {
     if (!(error_code & 0x1) && fault_address < KERNEL_VIRTUAL_BASE) {
@@ -215,7 +216,9 @@ void page_fault_handler(uint32_t fault_address, uint32_t error_code) {
         if (swapped && swap_in(entry, fault_address & PAGE_MASK)) {
             return;
         }
-        if (!swapped && fault_address < USER_DEMAND_REGION_END && paging_allocate_user_page_frame(page_dir, (void *) (fault_address & PAGE_MASK))) {
+
+        bool demand_region = fault_address < USER_DEMAND_REGION_END || fault_address >= USER_STACK_DEMAND_START;
+        if (!swapped && demand_region && paging_allocate_user_page_frame(page_dir, (void *) (fault_address & PAGE_MASK))) {
             return;
         }
     }
