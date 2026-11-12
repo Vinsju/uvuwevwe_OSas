@@ -131,6 +131,7 @@ bool swap_evict_one(uint32_t *frame_number) {
 
         uint32_t slot;
         if (!swap_alloc_slot(&slot)) { // Swap penuh
+            if (switched) paging_use_page_directory(page_dir);
             fifo_push(victim.page_dir, victim.virtual_address);
             return false;
         }
