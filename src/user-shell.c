@@ -25,7 +25,9 @@
 #include "header/filesystem/ext2.h"
 #include "header/syscall/syscall.h"
 #include "header/stdlib/string.h"
-
+#define SHELL_PROCESS_COUNT_MAX 16
+#define SHELL_PROCESS_STATE_READY 1
+#define SHELL_PROCESS_STATE_RUNNING 2
 /* ============================== KONFIGURASI ============================== */
 
 #ifndef SHELL_FILE_BUF
@@ -1345,6 +1347,7 @@ static void cmd_grep(struct CmdCtx *ctx)
  * Menjalankan program eksternal akan dihubungkan ke process manager
  * setelah API process creation dari Bagian B tersedia.
  */
+
 static void cmd_exec(struct CmdCtx *ctx)
 {
     if (ctx->argc != 2)
@@ -1353,10 +1356,86 @@ static void cmd_exec(struct CmdCtx *ctx)
         return;
     }
 
-    ob_puts(ctx->out, "[STUB] exec: process creation belum tersedia.\n");
-    ob_puts(ctx->out, "Program yang diminta: ");
-    ob_puts(ctx->out, ctx->argv[1]);
-    ob_putc(ctx->out, '\n');
+    /* Cari lokasi file program */
+    uint32_t parent, name_len;
+    const char *name;
+
+    const char *err = resolve_parent(
+        ctx->argv[1], &parent, &name, &name_len
+    );
+
+    if (err != NULL)
+    {
+        print_error("exec", ctx->argv[1], err);
+        return;
+    }
+
+    /* Ambil ukuran executable */
+    uint32_t file_size;
+
+    if (fs_file_size(parent, name, name_len, &file_size) != 0)
+    {
+        print_error("exec", ctx->argv[1], "Gagal membaca ukuran program.");
+        return;
+    }
+
+    if (file_size == 0)
+    {
+        print_error("exec", ctx->argv[1], "File program kosong.");
+        return;
+    }
+
+    /* Siapkan request untuk process manager */
+    struct EXT2DriverRequest request = make_request(
+        (void *)0,
+        file_size,
+        name,
+        name_len,
+        parent,
+        false
+    );
+
+    /* Minta kernel membuat process baru */
+    int32_t retcode = -1;
+
+    syscall(
+        SYSCALL_PROCESS_CREATE,
+        (uintptr_t)&request,
+        (uintptr_t)&retcode,
+        0
+    );
+
+    if (retcode == 0)
+    {
+        ob_puts(ctx->out, "Process berhasil dibuat.\n");
+    }
+    else
+    {
+        ob_puts(ctx->out, "Gagal membuat process. Kode error: ");
+        /* Tampilkan kode error */
+        char digits[12];
+        uint32_t n = 0;
+        uint32_t value = (uint32_t)retcode;
+
+        if (retcode < 0)
+        {
+            ob_putc(ctx->out, '-');
+            value = (uint32_t)(-retcode);
+        }
+
+        do
+        {
+            digits[n++] = '0' + (value % 10);
+            value /= 10;
+        } while (value > 0);
+
+        while (n > 0)
+        {
+            ob_putc(ctx->out, digits[--n]);
+        }
+
+        ob_putc(ctx->out, '\n');
+    }
 }
 
 /*
@@ -1364,6 +1443,7 @@ static void cmd_exec(struct CmdCtx *ctx)
  * Menampilkan daftar process akan dihubungkan ke syscall process info
  * dari Bagian B.
  */
+
 static void cmd_ps(struct CmdCtx *ctx)
 {
     if (ctx->argc != 1)
@@ -1372,7 +1452,63 @@ static void cmd_ps(struct CmdCtx *ctx)
         return;
     }
 
-    ob_puts(ctx->out, "[STUB] ps: process listing belum tersedia.\n");
+    struct ProcessInfo info[SHELL_PROCESS_COUNT_MAX];
+    uint32_t count = 0;
+
+    syscall(
+        SYSCALL_PROCESS_INFO,
+        (uintptr_t)info,
+        SHELL_PROCESS_COUNT_MAX,
+        (uintptr_t)&count
+    );
+
+    if (count == 0)
+    {
+        ob_puts(ctx->out, "Tidak ada process.\n");
+        return;
+    }
+
+    ob_puts(ctx->out, "PID\tNAME\t\tSTATE\n");
+
+    for (uint32_t i = 0; i < count; i++)
+    {
+        ob_puts(ctx->out, " ");
+
+        /* Tampilkan PID */
+        char digits[12];
+        uint32_t n = 0;
+        uint32_t value = info[i].pid;
+
+        do
+        {
+            digits[n++] = '0' + (value % 10);
+            value /= 10;
+        } while (value > 0);
+
+        while (n > 0)
+        {
+            ob_putc(ctx->out, digits[--n]);
+        }
+
+        ob_puts(ctx->out, "\t");
+        ob_puts(ctx->out, info[i].name);
+        ob_puts(ctx->out, "\t\t");
+
+        if (info[i].state == SHELL_PROCESS_STATE_RUNNING)
+        {
+            ob_puts(ctx->out, "RUNNING");
+        }
+        else if (info[i].state == SHELL_PROCESS_STATE_READY)
+        {
+            ob_puts(ctx->out, "READY");
+        }
+        else
+        {
+            ob_puts(ctx->out, "TERMINATED");
+        }
+
+        ob_putc(ctx->out, '\n');
+    }
 }
 
 /*
@@ -1380,6 +1516,7 @@ static void cmd_ps(struct CmdCtx *ctx)
  * Menghentikan process akan dihubungkan ke syscall process termination
  * dari Bagian B.
  */
+
 static void cmd_kill(struct CmdCtx *ctx)
 {
     if (ctx->argc != 2)
@@ -1388,11 +1525,61 @@ static void cmd_kill(struct CmdCtx *ctx)
         return;
     }
 
-    ob_puts(ctx->out, "[STUB] kill: process termination belum tersedia.\n");
-    ob_puts(ctx->out, "PID yang diminta: ");
-    ob_puts(ctx->out, ctx->argv[1]);
-    ob_putc(ctx->out, '\n');
+    /* Parse PID dari argumen */
+    const char *arg = ctx->argv[1];
+    uint32_t pid = 0;
+
+    if (arg[0] == '\0')
+    {
+        print_error("kill", ctx->argv[1], "PID tidak valid.");
+        return;
+    }
+
+    for (uint32_t i = 0; arg[i] != '\0'; i++)
+    {
+        if (arg[i] < '0' || arg[i] > '9')
+        {
+            print_error("kill", ctx->argv[1], "PID harus berupa angka positif.");
+            return;
+        }
+
+        uint32_t digit = (uint32_t)(arg[i] - '0');
+
+        if (pid > (UINT32_MAX - digit) / 10)
+        {
+            print_error("kill", ctx->argv[1], "PID terlalu besar.");
+            return;
+        }
+
+        pid = pid * 10 + digit;
+    }
+
+    if (pid == 0)
+    {
+        print_error("kill", ctx->argv[1], "PID harus lebih besar dari 0.");
+        return;
+    }
+
+    /* Minta kernel menghentikan process */
+    int8_t result = 0;
+
+    syscall(
+        SYSCALL_PROCESS_KILL,
+        pid,
+        (uintptr_t)&result,
+        0
+    );
+
+    if (result == 1)
+    {
+        ob_puts(ctx->out, "Process berhasil dihentikan.\n");
+    }
+    else
+    {
+        ob_puts(ctx->out, "Process tidak ditemukan atau gagal dihentikan.\n");
+    }
 }
+
 
 /* ============================== clear / help ============================== */
 
