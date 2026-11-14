@@ -50,14 +50,10 @@ void kernel_setup(void) {
     }
 
     scheduler_init();
+    scheduler_switch_to_next_process();
 
     _process_list[0].metadata.state = PROCESS_STATE_RUNNING;
 
     paging_use_page_directory(_process_list[0].context.page_directory_virtual_addr);
     kernel_execute_user_program((void *) 0x0);
-
-    // Penanda: kernel berhasil menerima kembali kontrol setelah EXIT
-    framebuffer_write(2, 0, 'E', 0x0A, 0x00);
-
-    while (true);
 }

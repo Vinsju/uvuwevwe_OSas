@@ -15,7 +15,7 @@ static inline uint32_t read_cr2(void) {
     return value;
 }
 
-static void irq_handler(uint32_t irq) {
+static void irq_handler(uint32_t irq, struct InterruptFrame *frame) {
     switch (irq) {
     case IRQ_KEYBOARD:
         keyboard_handler(); // keyboard_handler() sudah mengirim EOI sendiri
@@ -25,6 +25,16 @@ static void irq_handler(uint32_t irq) {
         // Bagian 4.2 (Scheduler): context saving & context switch dilakukan di sini.
         // Untuk sekarang cukup ACK supaya interrupt lain tidak terblokir.
         pic_send_eoi(IRQ_TIMER);
+        if ((frame->int_stack.cs & 0x3) == 0x3) {
+            struct Context ctx = {
+                .cpu    = frame->cpu,
+                .eip    = frame->int_stack.eip,
+                .eflags = frame->int_stack.eflags,
+                .page_directory_virtual_addr = paging_get_current_page_directory_addr(),
+            };
+            scheduler_save_context_to_current_running_pcb(ctx);
+            scheduler_switch_to_next_process();
+        }
         break;
 
     default:
@@ -58,7 +68,7 @@ void main_interrupt_handler(struct InterruptFrame frame) {
     } else if (int_number == INT_SYSCALL) {
         syscall_dispatch(&frame);
     } else if (int_number >= PIC1_OFFSET && int_number < PIC2_OFFSET + 8) {
-        irq_handler(int_number - PIC1_OFFSET);
+        irq_handler(int_number - PIC1_OFFSET, &frame);
     }
     // Exception CPU lain belum ditangani, perilaku sama dengan isr_default_handler lama
 }
