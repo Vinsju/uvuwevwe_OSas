@@ -193,8 +193,13 @@ bool process_destroy(uint32_t pid) {
 
     uint32_t eflags = process_interrupt_save_and_disable();
 
-    // Bebaskan memori user process
-    paging_free_page_directory(pcb->context.page_directory_virtual_addr);
+    struct PageDirectory *dir = pcb->context.page_directory_virtual_addr;
+
+    // Kalau CR3 masih menunjuk dir yang mau dibebaskan, pindah ke page directory kernel dulu
+    if (paging_get_current_page_directory_addr() == dir) {
+        paging_use_page_directory(&_paging_kernel_page_directory);   // cek nama di paging.h
+    }
+    paging_free_page_directory(dir);
 
     memset(pcb, 0, sizeof(struct ProcessControlBlock));
     process_manager_state.active_process_count--;
