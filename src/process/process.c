@@ -171,6 +171,8 @@ int32_t process_create_user_process(struct EXT2DriverRequest request) {
     process_manager_state.active_process_count++;
 
 exit_cleanup:
+    paging_use_page_directory(old_page_dir);
+
     // Kembalikan CR3
     if (retcode != PROCESS_CREATE_SUCCESS) {
         if (new_page_dir != NULL) {
@@ -181,7 +183,6 @@ exit_cleanup:
         }
     }
 
-    paging_use_page_directory(old_page_dir);
     process_interrupt_restore(eflags);
     return retcode;
 }
