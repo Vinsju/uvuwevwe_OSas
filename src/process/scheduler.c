@@ -1,5 +1,6 @@
 #include "header/process/scheduler.h"
 #include "header/cpu/interrupt.h"
+#include "header/memory/paging.h"
 
 void scheduler_init(void) {
     activate_timer_interrupt();
