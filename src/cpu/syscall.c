@@ -215,11 +215,11 @@ uint32_t syscall_handler(uint32_t eax, uint32_t ebx, uint32_t ecx, uint32_t edx)
         {
             struct ProcessControlBlock *current = process_get_current_running_pcb_pointer();
 
-            if (current == NULL) {
-                return SYSCALL_RESULT_RETURN_TO_KERNEL;
+            if (current != NULL) {
+                process_destroy(current->metadata.pid);
+
             }
 
-            process_destroy(current->metadata.pid);
             return SYSCALL_RESULT_SWITCH_PROCESS;
         }
 
