@@ -30,7 +30,7 @@ __attribute__((noreturn)) void scheduler_switch_to_next_process(void) {
 
     int32_t next = scheduler_pick_next_round_robin(current_idx);
     if (next < 0) {
-        for (;;) __asm__ volatile("hlt");  // tidak ada process yang bisa jalan
+        for (;;) __asm__ volatile("sti; hlt");  // tidak ada process yang bisa jalan
     }
 
     if (current != NULL && current->metadata.state == PROCESS_STATE_RUNNING)
