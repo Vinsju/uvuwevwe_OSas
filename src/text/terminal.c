@@ -1,0 +1,149 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include "header/text/terminal.h"
+#include "header/text/framebuffer.h"
+#include "header/stdlib/string.h"
+
+#define TERMINAL_ROW_BYTES (TERMINAL_WIDTH * 2)
+#define TERMINAL_DEFAULT_COLOR 0x07
+
+static uint8_t cursor_row = 0;
+static uint8_t cursor_col = 0;
+
+static void terminal_clear_row(uint8_t row)
+{
+    for (uint8_t col = 0; col < TERMINAL_WIDTH; col++)
+    {
+        framebuffer_write(row, col, ' ', TERMINAL_DEFAULT_COLOR, 0);
+    }
+}
+
+/* Geser area teks 1 baris ke atas, baris teks terakhir dikosongkan. Status line tidak ikut bergeser */
+static void terminal_scroll(void)
+{
+    uint8_t *fb = FRAMEBUFFER_MEMORY_OFFSET;
+    memmove(fb, fb + TERMINAL_ROW_BYTES, TERMINAL_ROW_BYTES * (TERMINAL_TEXT_HEIGHT - 1));
+    terminal_clear_row(TERMINAL_TEXT_HEIGHT - 1);
+}
+
+static void terminal_newline(void)
+{
+    cursor_col = 0;
+    if (cursor_row + 1 >= TERMINAL_TEXT_HEIGHT)
+    {
+        terminal_scroll();
+        cursor_row = TERMINAL_TEXT_HEIGHT - 1;
+    }
+    else
+    {
+        cursor_row++;
+    }
+}
+
+static void terminal_put_raw(char c, uint8_t color)
+{
+    framebuffer_write(cursor_row, cursor_col, c, color & 0x0F, (color >> 4) & 0x0F);
+    cursor_col++;
+    if (cursor_col >= TERMINAL_WIDTH)
+    {
+        terminal_newline();
+    }
+}
+
+void terminal_putchar(char c, uint8_t color)
+{
+    switch (c)
+    {
+    case '\n':
+        terminal_newline();
+        break;
+    case '\r':
+        cursor_col = 0;
+        break;
+    case '\b':
+        if (cursor_col > 0)
+        {
+            cursor_col--;
+        }
+        else if (cursor_row > 0)
+        {
+            cursor_row--;
+            cursor_col = TERMINAL_WIDTH - 1;
+        }
+        framebuffer_write(cursor_row, cursor_col, ' ', TERMINAL_DEFAULT_COLOR, 0);
+        break;
+    case '\t':
+        do
+        {
+            terminal_put_raw(' ', color);
+        } while (cursor_col % 4 != 0);
+        break;
+    default:
+        terminal_put_raw(c, color);
+        break;
+    }
+    framebuffer_set_cursor(cursor_row, cursor_col);
+}
+
+void terminal_puts(const char *str, uint32_t count, uint8_t color)
+{
+    for (uint32_t i = 0; i < count; i++)
+    {
+        terminal_putchar(str[i], color);
+    }
+}
+
+void terminal_clear(void)
+{
+    for (uint8_t row = 0; row < TERMINAL_TEXT_HEIGHT; row++)
+    {
+        terminal_clear_row(row);
+    }
+    cursor_row = 0;
+    cursor_col = 0;
+    framebuffer_set_cursor(0, 0);
+}
+
+void terminal_set_cursor(uint8_t row, uint8_t col)
+{
+    cursor_row = row < TERMINAL_TEXT_HEIGHT ? row : TERMINAL_TEXT_HEIGHT - 1;
+    cursor_col = col < TERMINAL_WIDTH ? col : TERMINAL_WIDTH - 1;
+    framebuffer_set_cursor(cursor_row, cursor_col);
+}
+
+void terminal_get_cursor(uint8_t *row, uint8_t *col)
+{
+    *row = cursor_row;
+    *col = cursor_col;
+}
+
+void terminal_write_at(uint8_t row, uint8_t col, const char *str, uint32_t count, uint8_t color)
+{
+    if (row >= TERMINAL_HEIGHT)
+    {
+        return;
+    }
+    for (uint32_t i = 0; i < count && (uint32_t)col + i < TERMINAL_WIDTH; i++)
+    {
+        char c = (str[i] >= ' ' && str[i] <= '~') ? str[i] : ' ';
+        framebuffer_write(row, (uint8_t)(col + i), c, color & 0x0F, (color >> 4) & 0x0F);
+    }
+}
+
+static bool status_line_owned = false;
+static uint32_t status_line_owner_pid = 0;
+
+void terminal_set_status_line_owner(uint32_t pid)
+{
+    status_line_owned = true;
+    status_line_owner_pid = pid;
+}
+
+void terminal_release_status_line(uint32_t pid)
+{
+    if (status_line_owned && status_line_owner_pid == pid)
+    {
+        terminal_clear_row(TERMINAL_STATUS_ROW);
+        status_line_owned = false;
+    }
+}

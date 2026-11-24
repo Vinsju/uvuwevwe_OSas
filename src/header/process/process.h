@@ -1,0 +1,139 @@
+#ifndef _PROCESS_H
+#define _PROCESS_H
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+
+#include "header/cpu/interrupt.h"
+#include "header/memory/paging.h"
+#include "header/filesystem/ext2.h"
+#include "header/syscall/syscall.h"
+
+
+#define PROCESS_NAME_LENGTH_MAX          32
+#define PROCESS_COUNT_MAX                16
+
+#define KERNEL_VIRTUAL_ADDRESS_BASE      0xC0000000
+#define PROCESS_USER_STACK_PAGE          0xBFFFF000
+#define PROCESS_USER_STACK_TOP           0xBFFFFFFC
+#define PROCESS_USER_HEAP_START          0x00400000
+#define PROCESS_USER_HEAP_LIMIT          0xBF000000
+#define PROCESS_SBRK_FAIL                0xFFFFFFFF
+#define PROCESS_SBRK_RESERVE_PAGES       16
+
+#define CPU_EFLAGS_BASE_FLAG               0x2
+#define CPU_EFLAGS_FLAG_CARRY              0x1
+#define CPU_EFLAGS_FLAG_PARITY             0x4
+#define CPU_EFLAGS_FLAG_AUX_CARRY          0x10
+#define CPU_EFLAGS_FLAG_ZERO               0x40
+#define CPU_EFLAGS_FLAG_SIGN               0x80
+#define CPU_EFLAGS_FLAG_TRAP               0x100
+#define CPU_EFLAGS_FLAG_INTERRUPT_ENABLE   0x200
+#define CPU_EFLAGS_FLAG_DIRECTION          0x400
+#define CPU_EFLAGS_FLAG_OVERFLOW           0x800
+#define CPU_EFLAGS_FLAG_IO_PRIVILEGE       0x3000
+#define CPU_EFLAGS_FLAG_NESTED_TASK        0x4000
+#define CPU_EFLAGS_FLAG_MODE               0x8000
+#define CPU_EFLAGS_FLAG_RESUME             0x10000
+#define CPU_EFLAGS_FLAG_VIRTUAL_8086       0x20000
+#define CPU_EFLAGS_FLAG_ALIGNMENT_CHECK    0x40000
+#define CPU_EFLAGS_FLAG_VINTERRUPT_FLAG    0x80000
+#define CPU_EFLAGS_FLAG_VINTERRUPT_PENDING 0x100000
+#define CPU_EFLAGS_FLAG_CPUID_INSTRUCTION  0x200000
+#define CPU_EFLAGS_FLAG_AES_SCHEDULE_LOAD  0x40000000
+#define CPU_EFLAGS_FLAG_ALTER_INSTRUCTION  0x80000000
+
+// Return code constant for process_create_user_process()
+#define PROCESS_CREATE_SUCCESS                   0
+#define PROCESS_CREATE_FAIL_MAX_PROCESS_EXCEEDED 1
+#define PROCESS_CREATE_FAIL_INVALID_ENTRYPOINT   2
+#define PROCESS_CREATE_FAIL_NOT_ENOUGH_MEMORY    3
+#define PROCESS_CREATE_FAIL_FS_READ_FAILURE      4
+
+struct Context {
+    struct CPURegister cpu;
+    uint32_t eip;
+    uint32_t eflags;
+    struct PageDirectory *page_directory_virtual_addr;  // cek nama tipe di paging.h
+};
+
+typedef enum PROCESS_STATE {
+    PROCESS_STATE_TERMINATED = 0,  // slot kosong / sudah selesai
+    PROCESS_STATE_READY,
+    PROCESS_STATE_RUNNING
+} PROCESS_STATE;
+
+struct ProcessControlBlock {
+    struct {
+        uint32_t      pid;
+        char          name[PROCESS_NAME_LENGTH_MAX];
+        PROCESS_STATE state;
+    } metadata;
+
+    struct Context context;
+
+    struct {
+        uint32_t page_frame_used_count;
+        uint32_t heap_start;
+        uint32_t heap_break;
+    } memory;
+};
+
+extern struct ProcessControlBlock _process_list[PROCESS_COUNT_MAX];
+
+struct ProcessArgvBlob {
+    uint32_t argc;
+    uint32_t data_len;
+    uint32_t offset[PROCESS_ARGV_MAX_COUNT];
+    char     data[PROCESS_ARGV_MAX_BYTES];
+};
+
+struct ProcessManagerState {
+    uint32_t active_process_count;
+    uint32_t next_pid;
+};
+
+/**
+ * Get currently running process PCB pointer
+ * 
+ * @return Will return NULL if there's no running process
+ */
+struct ProcessControlBlock* process_get_current_running_pcb_pointer(void);
+
+/**
+ * Create new user process and setup the virtual address space.
+ * All available return code is defined with macro "PROCESS_CREATE_*"
+ * 
+ * @note          This procedure assumes no reentrancy in ISR
+ * @param request Appropriate read request for the executable
+ * @return        Process creation return code
+ */
+int32_t process_create_user_process(struct EXT2DriverRequest request);
+int32_t process_create_user_process_args(struct EXT2DriverRequest request, const struct ProcessArgvBlob *args);
+uint32_t process_get_last_created_pid(void);
+bool process_is_alive(uint32_t pid);
+
+/**
+ * Destroy process then release page directory and process control block
+ * 
+ * @param pid Process ID to delete
+ * @return    True if process destruction success
+ */
+bool process_destroy(uint32_t pid);
+
+/**
+ * Salin info semua process yang aktif (dipakai syscall ps)
+ *
+ * @param info      Array tujuan (memori kernel atau user yang sudah divalidasi)
+ * @param max_count Kapasitas array info
+ * @return          Jumlah entri yang ditulis
+ */
+uint32_t process_get_info(struct ProcessInfo *info, uint32_t max_count);
+
+uint32_t process_sbrk(int32_t increment);
+
+bool process_is_heap_adress(uint32_t address);
+
+void process_count_demand_page(void);
+#endif

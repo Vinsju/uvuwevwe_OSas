@@ -11,5 +11,7 @@
  * @warning Invalid address / definition of GDT will cause bootloop after calling this procedure.
  */
 extern void load_gdt(struct GDTR *gdtr);
+extern void kernel_execute_user_program(void *virtual_addr);
+extern void set_tss_register(void);
 
 #endif

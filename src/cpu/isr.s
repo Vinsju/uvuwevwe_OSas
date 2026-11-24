@@ -1,27 +1,10 @@
-global isr_default_handler
-global isr_keyboard_handler
-global isr_timer_handler
+; Semua interrupt 0x00 - 0x3F ditangani lewat cpu/intsetup.s (kit Book 4.1.0)
+; -> main_interrupt_handler() di cpu/interrupt.c.
+; File ini hanya menyisakan handler kosong untuk vektor 0x40 - 0xFF yang tidak dipakai.
 
-extern keyboard_handler
-extern pic_send_eoi
+global isr_default_handler
 
 section .text
 
 isr_default_handler:
-    pusha
-    popa
-    iret
-
-isr_timer_handler:
-    pusha
-    push dword 0
-    call pic_send_eoi
-    add esp, 4
-    popa
-    iret
-
-isr_keyboard_handler:
-    pusha
-    call keyboard_handler
-    popa
     iret
