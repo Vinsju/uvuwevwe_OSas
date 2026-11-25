@@ -23,11 +23,11 @@
  *  11  | FS ukuran file         | struct EXT2DriverRequest *   | int8_t *return code   | uint32_t *size
  *  12  | exit                   | return code main()           | -                     | -
  *  13  | waktu CMOS (RTC)       | struct CMOSTime *            | -                     | -
- *  15 | buat process (exec)     | struct EXT2DriverRequest *   | int32_t *return code  | struct ProcessArgs * (boleh 0)
+ *  14 | puts di posisi tertentu | char * buffer                | jumlah karakter       | row | col << 8 | warna << 16
  *  15 | buat process (exec)     | struct EXT2DriverRequest *   | int32_t *return code  | -
  *  16 | kill process            | pid                          | int8_t *hasil (1 ok)  | -
  *  17 | info process (ps)       | struct ProcessInfo * array   | kapasitas array       | uint32_t *jumlah
- *  18 | tunggu process (wait)   | pid.
+ *  18 | tunggu process (wait)   | pid                          | uint8_t *dihentikan   | -
  *  19 | speaker (beep)          | frekuensi (Hz, 0 = mati)     | durasi (ms) 
  *  20 | sbrk (ubah ukuran heap) | int32_t increment (byte)     | uint32_t *batas lama  | -
  *
