@@ -37,16 +37,17 @@ src/
 │   ├── isr.s
 │   ├── keyboard.c
 │   ├── pic.c
-│   └── portio.c
+│   ├── portio.c
 │   ├── speaker.c
-│   ├── syscall.c
+│   └── syscall.c
 ├── external/
 │   ├── args-demo.c
 │   ├── beep.c
 │   ├── clock.c
 │   ├── crash.c
+│   ├── demo.sh
 │   ├── external-inserter.c
-│   └── grow.c
+│   ├── grow.c
 │   └── hello-world.c
 ├── header/
 │   ├── cpu/
@@ -56,7 +57,6 @@ src/
 │   ├── stdlib/
 │   ├── syscall/
 │   ├── text/
-│   ├── user/
 │   ├── disk.h
 │   └── kernel-entrypoint.h
 ├── process/
@@ -70,7 +70,6 @@ src/
 ├── disk.c
 ├── ext2.c
 ├── framebuffer.c
-├── fsutil.c
 ├── kernel-entrypoint.s
 ├── kernel.c
 ├── linker.ld
@@ -80,7 +79,7 @@ src/
 ├── user-linker.ld
 └── user-shell.c
 Makefile
-Readme.md
+README.md
 IF2130 - Jurnal - 2026 uvuwevwe_OSas.pdf
 ```
 
@@ -109,7 +108,7 @@ Pastikan perangkat telah menginstal:
 ### Cara Setup Pertama Kali
 
 ```bash
-make setup   # disk baru + masukkan shell, hello, clock, args-demo + build kernel
+make setup   # disk baru + masukkan semua program (shell, hello, clock, args-demo, grow, beep, demo.sh) + build kernel
 make run     # jalankan OS (atau cukup: make)
 ```
 
@@ -118,7 +117,7 @@ make run     # jalankan OS (atau cukup: make)
 Langkah manual yang setara:
   1. `make clean` (bersihkan build sebelumnya)
   2. `make disk` (buat disk image kosong)
-  3. `make insert-all` (masukkan shell, hello, clock, args-demo ke file system)
+  3. `make insert-all` (masukkan shell, hello, clock, args-demo, grow, beep, demo.sh ke file system)
   4. `make run` (build kernel + ISO lalu jalankan OS)
 
 ### Cara Run Virtual Machine QEMU
@@ -136,7 +135,9 @@ make run     # atau cukup: make
 | `exec clock &` | Menjalankan jam di background, jam tampil di pojok kanan bawah dan shell tetap bisa dipakai |
 | `exec clock` lalu `Ctrl+C` | Program foreground ditunggu shell sampai selesai, `Ctrl+C` untuk menghentikannya |
 | `exec beep` | Menjalankan program yang memainkan suara do-re-mi-fa-so-la-si-do do-sol-mi-do |
-| `ps` | Menampilkan daftar process aktif (PID, nama, state) |
+| `exec grow` | Program yang membesarkan memorinya sendiri saat berjalan (lihat kolom MEM di `ps`) |
+| `sh demo.sh` atau `./demo.sh` | Menjalankan file script shell (satu command per baris, baris `#` = komentar) |
+| `ps` | Menampilkan daftar process aktif (PID, nama, state, memori) |
 | `kill <pid>` | Menghentikan process dengan PID tertentu (contoh: `kill 1`) |
 | `cd`, `ls`, `mkdir`, `cat`, `cp [-r]`, `rm [-r]`, `mv`, `find`, `grep` | Command file system, mendukung pipeline `\|` dan redirect `>` / `>>` |
 | `help` | Menampilkan semua command |
